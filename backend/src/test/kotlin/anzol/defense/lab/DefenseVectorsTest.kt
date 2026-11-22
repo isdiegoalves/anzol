@@ -111,4 +111,46 @@ class DefenseVectorsTest {
         assertThat(notes).hasSize(1)
         assertThat(notes.first().asString()).contains("rule", "system")
     }
+
+    private fun event(planned: Planned) = bodyMapper.readTree(planned.request.body)
+
+    @Test
+    @DisplayName("Dado o I5, quando gera, então é a cópia exata de uma legítima da onda e chega depois dela")
+    fun replayDentroDaJanela_copiaUmaLegitimaEChegaDepois() {
+        val planned = wave(seed = 7, wave = 1)
+        val replay = planned.indexOfFirst { it.scenario == DefenseScenario.I5 }
+        val original = planned.indexOfFirst { it.scenario == null && it.request == planned[replay].request }
+
+        assertThat(original).isBetween(0, replay - 1)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado o remetente comprometido, quando gera, então o estorno é de pedido sem pagamento, o valor é extremo e a conta não é da loja",
+    )
+    fun remetenteComprometido_conteudoDenuncia() {
+        val planned = wave(seed = 7, wave = 1)
+        val legitimateOrders = planned.filter { it.scenario == null }.map { event(it)["data"]["order_id"].asString() }
+        val refund = event(planned.first { it.scenario == DefenseScenario.C1 })
+        val extreme = event(planned.first { it.scenario == DefenseScenario.C2 })
+        val swapped = event(planned.first { it.scenario == DefenseScenario.C3 })
+
+        assertThat(refund["type"].asString()).isEqualTo("payment.refunded")
+        assertThat(legitimateOrders).doesNotContain(refund["data"]["order_id"].asString())
+        assertThat(extreme["data"]["amount"].asLong()).isGreaterThanOrEqualTo(1_000_000)
+        assertThat(swapped["data"]["account"].asString()).isNotIn(STORE_ACCOUNT, STORE_SECOND_ACCOUNT)
+    }
+
+    @Test
+    @DisplayName("Dado uma onda, quando gera, então um pedido legítimo tem valor alto com o ciclo inteiro e outro liquida na segunda conta")
+    fun sosias_doRemetenteComprometido() {
+        val legitimate = wave(seed = 7, wave = 1).filter { it.scenario == null }.map { event(it)["data"] }
+        val high = legitimate.filter { it["amount"].asInt() == 150_000 }
+        val second = legitimate.filter { it["account"].asString() == STORE_SECOND_ACCOUNT }
+
+        assertThat(high).hasSize(3)
+        assertThat(high.map { it["order_id"].asString() }.toSet()).hasSize(1)
+        assertThat(second).hasSize(3)
+        assertThat(legitimate.filterNot { it in high }.map { it["amount"].asInt() }).allMatch { it < 50_000 }
+    }
 }

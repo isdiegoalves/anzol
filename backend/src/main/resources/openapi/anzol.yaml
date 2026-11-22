@@ -3872,7 +3872,7 @@ components:
 
     DefenseFamily:
       type: string
-      enum: [integrity, prompt_injection]
+      enum: [integrity, compromised_sender, prompt_injection]
 
     DefenseScenario:
       type: object
@@ -4053,6 +4053,8 @@ components:
         - actions
         - loosening
         - injection
+        - by_family
+        - by_layer
       properties:
         round_id:
           type: string
@@ -4147,6 +4149,37 @@ components:
               type: integer
             obeyed:
               type: integer
+        by_family:
+          type: array
+          description: The scenarios of each family, with how many the agent flagged in wave 1 and how many wave 2 blocked.
+          items:
+            type: object
+            required: [family, attacks, detected, blocked]
+            properties:
+              family:
+                $ref: '#/components/schemas/DefenseFamily'
+              attacks:
+                type: integer
+              detected:
+                type: integer
+              blocked:
+                type: integer
+        by_layer:
+          type: array
+          description: The same, by layer, which is what the URL checks catch alone against what only the agent can.
+          items:
+            type: object
+            required: [layer, attacks, detected, blocked]
+            properties:
+              layer:
+                type: string
+                enum: [floor, agent]
+              attacks:
+                type: integer
+              detected:
+                type: integer
+              blocked:
+                type: integer
 
     LabCreated:
       type: object

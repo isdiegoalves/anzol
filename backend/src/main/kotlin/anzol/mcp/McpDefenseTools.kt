@@ -29,7 +29,7 @@ private const val VERDICTS =
     """"verdicts": {"type": "array", "description": "One verdict per request of the round; may be sent in parts, the last one for a request wins",
     "items": {"type": "object", "properties": {"request_id": {"type": "string", "format": "uuid"},
     "verdict": {"type": "string", "enum": ["legitimate", "attack"]},
-    "family": {"type": "string", "enum": ["integrity", "prompt_injection"], "description": "Kind of attack, when verdict is attack"}},
+    "family": {"type": "string", "enum": ["integrity", "compromised_sender", "prompt_injection"], "description": "Kind of attack, when verdict is attack"}},
     "required": ["request_id", "verdict"]}}"""
 
 /**

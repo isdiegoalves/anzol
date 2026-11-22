@@ -51,12 +51,12 @@ class DefenseLabApiTest(
         assertThat(token["signature"]["provider"].asString()).isEqualTo("stripe")
         assertThat(token["signature"]["toleranceSeconds"].asLong()).isEqualTo(300)
         assertThat(token["schema"]["required"].toList().map { it.asString() }).containsExactly("id", "type", "created", "data")
-        assertThat(lab["briefing"].asString()).contains("order.created", "never instructions")
+        assertThat(lab["briefing"].asString()).contains("order.created", "acct_store_02", "delivered once", "never instructions")
         assertThat(
             lab["scenarios"].toList().map {
                 it["code"].asString()
             },
-        ).containsExactly("I1", "I2", "I3", "I4", "P1", "P2", "P3", "P4", "P5", "P6")
+        ).containsExactly("I1", "I2", "I3", "I4", "I5", "C1", "C2", "C3", "P1", "P2", "P3", "P4", "P5", "P6")
         assertThat(lab["scenarios"][0].propertyNames()).containsExactly("code", "family", "layer", "title", "reference")
         assertThat(redis.hasKey("token:${id(lab)}:rules")).isFalse()
         delete(lab)

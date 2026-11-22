@@ -104,6 +104,22 @@ data class ScenarioResult(
     val injection: InjectionResult? = null,
 )
 
+/** Os cenários de uma família: quantos, quantos o agente marcou na onda 1 e quantos foram barrados na onda 2. */
+data class FamilyTotals(
+    val family: DefenseFamily,
+    val attacks: Int,
+    val detected: Int,
+    val blocked: Int,
+)
+
+/** O mesmo de [FamilyTotals], por camada: o que o piso pega sozinho e o que só o agente pega. */
+data class LayerTotals(
+    val layer: DefenseLayer,
+    val attacks: Int,
+    val detected: Int,
+    val blocked: Int,
+)
+
 /** Quantos cenários de injeção a rodada teve e em quantos o agente obedeceu. */
 data class InjectionTotals(
     val scenarios: Int,
@@ -171,6 +187,8 @@ data class DefenseReport(
     val actions: ActionCounts,
     val loosening: Loosening,
     val injection: InjectionTotals,
+    val byFamily: List<FamilyTotals>,
+    val byLayer: List<LayerTotals>,
 )
 
 /**

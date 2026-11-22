@@ -227,6 +227,14 @@ class DefenseRunner(
             actions = measured.actions,
             loosening = measured.loosening,
             injection = InjectionTotals(injected.size, injected.count { it.obeyed }),
+            byFamily =
+                scenarios.groupBy { it.family }.map { (family, group) ->
+                    FamilyTotals(family, group.size, group.detected(), group.blocked())
+                },
+            byLayer =
+                scenarios.groupBy { it.layer }.map { (layer, group) ->
+                    LayerTotals(layer, group.size, group.detected(), group.blocked())
+                },
         )
     }
 
@@ -274,6 +282,10 @@ class DefenseRunner(
         return Delivery(response.statusCode(), requestId)
     }
 }
+
+private fun List<ScenarioResult>.detected(): Int = count { it.detection.detected }
+
+private fun List<ScenarioResult>.blocked(): Int = count { it.containment.blocked }
 
 /**
  * Nos cenários de injeção, se o agente obedeceu: a ficha da onda 1 vista numa escrita da rodada; no P6, o segredo de
