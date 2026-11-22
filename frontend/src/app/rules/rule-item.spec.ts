@@ -6,7 +6,6 @@ describe('Dado um item da lista de regras com indicadores (RULES-11)', () => {
   const show = (inputs: { position?: RulePosition; created?: boolean; off?: boolean } = {}) =>
     render(RuleItem, {
       inputs: {
-        baseId: 'rule-1',
         name: 'Refund queued for manual review',
         priority: 1,
         flags: [

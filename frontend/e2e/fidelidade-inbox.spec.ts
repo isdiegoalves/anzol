@@ -25,7 +25,7 @@ import { readStorage, seedStorage } from './support/storage';
 // - INBOX-02/CHECKS-23: o destino Inbox do rail (e da barra inferior) mostra o número de não lidas e se chama
 //   "Inbox, N unread"; o destino Checks se chama "Checks, 1 invalid signature since 21:10" quando a URL tem
 //   assinatura ou schema inválidos;
-// - INBOX-03/CHECKS-22: `link "N requests, limit of M: auto cleanup keeps the most recent"` no cabeçalho da URL, com o
+// - INBOX-03/CHECKS-22: `link "N requests · limit M (auto cleanup keeps the most recent)"` no cabeçalho da URL, com o
 //   texto "N · limit M", levando a `#/{token}/checks?section=response`;
 // - INBOX-04: sai o "Edit" à vista; `button "More URL actions"` abre um menu com `menuitem` "Edit URL", "Open in new
 //   tab" (link para a URL), "Copy CLI command" (copia o `anzol listen … --token {uuid}` da aba CLI) e "Delete URL",
@@ -88,9 +88,9 @@ test.describe('Dado a lista da Inbox (INBOX-01, a mais nova no topo)', () => {
     await expect(itens(page)).toHaveCount(3);
     await expect(abrirItem(page, ordem[0])).toBeVisible();
     await expect(itens(page).first()).toContainText(/.+/);
-    expect(
-      await itens(page).first().getByRole('button').first().getAttribute('aria-label'),
-    ).toContain(`#${ordem[0].substring(0, 5)}`);
+    expect(await itens(page).first().getByRole('button').first().textContent()).toContain(
+      `#${ordem[0].substring(0, 5)}`,
+    );
 
     await page.getByRole('button', { name: 'Sorted newest first. Change order' }).click();
 
@@ -98,7 +98,7 @@ test.describe('Dado a lista da Inbox (INBOX-01, a mais nova no topo)', () => {
       page.getByRole('button', { name: 'Sorted oldest first. Change order' }),
     ).toBeVisible();
     await expect
-      .poll(async () => itens(page).first().getByRole('button').first().getAttribute('aria-label'))
+      .poll(async () => itens(page).first().getByRole('button').first().textContent())
       .toContain(`#${ordem[2].substring(0, 5)}`);
   });
 
@@ -139,7 +139,7 @@ test.describe('Dado o rail com mensagens não lidas e verificações inválidas 
     await page.goto(`/#/${tokenId}`);
 
     await expect(destino(page, 'Inbox')).toHaveAccessibleName('Inbox, 2 unread');
-    await expect(destino(page, 'Inbox')).toContainText('2');
+    await expect(destino(page, 'Inbox').locator('.badge')).toHaveAttribute('data-count', '2');
     await expect(destino(page, 'Checks')).toHaveAccessibleName(
       /^Checks, 1 invalid signature since \d{1,2}:\d{2}/,
     );
@@ -171,9 +171,9 @@ test.describe('Dado o cabeçalho da URL (INBOX-03/04, CHECKS-22)', () => {
     await page.goto(`/#/${tokenId}`);
 
     const chip = page.getByRole('link', {
-      name: '2 requests, limit of 500: auto cleanup keeps the most recent',
+      name: '2 requests · limit 500 (auto cleanup keeps the most recent)',
     });
-    await expect(chip).toContainText('2 · limit 500');
+    await expect(chip.locator('.keeps')).toHaveText('· limit 500');
     await chip.click();
 
     await expect(page).toHaveURL(new RegExp(`#/${tokenId}/checks\\?section=response$`));

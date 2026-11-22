@@ -288,7 +288,7 @@ test.describe('Dado a página Outbound', () => {
 
     await expect(
       replay.getByRole('button', {
-        name: `Request to replay: #${requestId.substring(0, 5)}, POST /pedidos?x=1. Change`,
+        name: `Request to replay: POST #${requestId.substring(0, 5)} /pedidos?x=1. Change`,
       }),
     ).toBeVisible();
     await replay.getByRole('textbox', { name: 'Target URL' }).fill('http://destino.example/app');

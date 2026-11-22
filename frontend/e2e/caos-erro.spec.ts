@@ -5,7 +5,9 @@ import { abrirFiltros, campoDeBusca, filtro, itens, lista } from './support/inbo
 const rotulos = (page: Page) =>
   itens(page)
     .locator('button.select')
-    .evaluateAll((botoes) => botoes.map((botao) => botao.getAttribute('aria-label') ?? ''));
+    .evaluateAll((botoes) =>
+      botoes.map((botao) => botao.textContent?.replace(/\s+/g, ' ').trim() ?? ''),
+    );
 const titulo = (page: Page) => lista(page).getByRole('heading', { level: 2 });
 /** Todo texto que o título da lista teve daqui em diante, na ordem. */
 async function titulosVistos(page: Page): Promise<() => Promise<string[]>> {

@@ -61,7 +61,7 @@ export class UrlHeader {
   protected readonly labChip = (expiresAt: string) =>
     $localize`Lab · expires ${fromNow(expiresAt)}:relative:`;
   protected readonly labLabel = (expiresAt: string) =>
-    $localize`E2EE lab URL, expires ${fromNow(expiresAt)}:relative:. Open Checks`;
+    $localize`E2EE lab, expires ${fromNow(expiresAt)}:relative:. Open Checks`;
 
   /** O estado do SSE na linguagem da tela; `null` sem stream (fora da Inbox). */
   protected readonly live = computed<LiveState | null>(() => {
@@ -87,16 +87,7 @@ export class UrlHeader {
     if (!token || total === null) {
       return null;
     }
-    const keeps = token.auto_cleanup ?? null;
-    const stored = total === 1 ? $localize`1 request` : $localize`${total}:count: requests`;
-    return {
-      total,
-      keeps,
-      label:
-        keeps === null
-          ? stored
-          : $localize`${stored}:stored:, limit of ${keeps}:limit:: auto cleanup keeps the most recent`,
-    };
+    return { total, keeps: token.auto_cleanup ?? null };
   });
 
   /** O menu ⋮ da URL (protótipo C): os fluxos pesados vêm de `TokenActions`, por `import()`. */

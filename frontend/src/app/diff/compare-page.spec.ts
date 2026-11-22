@@ -69,7 +69,7 @@ describe('Dado o link do Compare (#/{token}/compare/{a}/{b})', () => {
     });
     expect(page().querySelector('.id-a')?.textContent).toBe(`#${R1.uuid.substring(0, 5)}`);
     expect([...page().querySelectorAll('.item.pick-a, .item.pick-b')]).toHaveLength(2);
-    expect(page().querySelector('.item.pick-b .select')?.getAttribute('aria-label')).toMatch(
+    expect(page().querySelector('.item.pick-b .select > .app-spoken')?.textContent).toMatch(
       /compared as B$/,
     );
     await expectNoAxeViolations(page());

@@ -144,9 +144,10 @@
                         [count]="item.count"
                         [what]="item.label"
                         [countScope]="within"
-                        ><span class="label" [class.code]="item.code">{{ item.label }}</span
+                        [countName]="reasonName(item.label, item.count)"
+                        ><!-- prettier-ignore --><span class="label" [class.code]="item.code">{{ item.label }} </span
                         ><span class="show" i18n>Open in the Inbox</span
-                        ><span class="count">{{ item.count }}</span></a
+                        ><!-- prettier-ignore --><span class="count"> {{ item.count }}</span></a
                       >
                       <span class="track" aria-hidden="true"
                         ><span class="share" [style.width]="item.share"></span

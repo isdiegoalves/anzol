@@ -27,7 +27,6 @@ import { EventView } from './list-rows';
       class="select"
       [attr.data-uuid]="'event:' + event.value"
       [attr.tabindex]="stop() ? 0 : -1"
-      [attr.aria-label]="event.label"
       (focus)="focused.emit()"
       (keydown)="moved.emit($event)"
       (click)="opened.emit($event)"
@@ -35,7 +34,7 @@ import { EventView } from './list-rows';
       <span class="line">
         <app-method-badge class="tinted" [method]="event.method" />
         <!-- prettier-ignore -->
-        <span class="route" [title]="event.route"><span class="head">{{ event.head }}</span><span class="tail">{{ event.tail }}</span></span>
+        <span class="route" [title]="event.route"><span class="head" aria-hidden="true">{{ event.head }}</span><span class="tail" aria-hidden="true">{{ event.tail }}</span><span class="app-spoken">{{ event.route }}</span></span>
         @if (!compact()) {
           <span class="value">{{ event.value }}</span>
         }
@@ -48,7 +47,10 @@ import { EventView } from './list-rows';
         </span>
       }
       <span class="line meta trail">
-        <span class="seals">
+        <span class="app-spoken" i18n="the status codes of the attempts, in order"
+          >answers {{ event.answers }}</span
+        >
+        <span class="seals" aria-hidden="true">
           @for (seal of event.trail; track $index) {
             <!-- A marca ✗ e o "×14" ficam no selo; o nome acessível da linha diz os problemas. -->
             <!-- prettier-ignore -->
@@ -62,6 +64,7 @@ import { EventView } from './list-rows';
           <span class="note"> · {{ note }}</span>
         }
       </span>
+      <span class="app-spoken" i18n>Open the newest attempt</span>
     </button>
   `,
   styleUrl: './event-line.scss',

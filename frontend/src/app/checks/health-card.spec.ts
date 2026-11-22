@@ -182,7 +182,7 @@ describe('Dado o cartão "Health" de Checks', () => {
     );
     expect(mismatch.textContent).toContain('Open in the Inbox');
     expect(mismatch.getAttribute('aria-label')).toBe(
-      'the HMAC did not match (signature mismatch), 6 requests. Open in the Inbox',
+      'the HMAC did not match (signature mismatch). Open in the Inbox, 6 requests',
     );
     expect(
       screen.getByRole('link', { name: /header stripe-signature absent/ }).getAttribute('href'),
@@ -206,12 +206,16 @@ describe('Dado o cartão "Health" de Checks', () => {
 
     const link = (name: string) =>
       screen.getByRole('link', { name: `${name}. Open in the Inbox` }).getAttribute('href');
+    const reason = (what: string, count: string) =>
+      screen
+        .getByRole('link', { name: `${what}. Open in the Inbox, ${count}` })
+        .getAttribute('href');
     await vi.waitFor(() =>
       expect(link('Signature valid, 110 requests')).toBe(`/${TOKEN_ID}?signature=valid&window=128`),
     );
     expect(link('Schema valid, 100 requests')).toBe(`/${TOKEN_ID}?schema=valid&window=128`);
     expect(link('Schema invalid, 20 requests')).toBe(`/${TOKEN_ID}?schema=invalid&window=128`);
-    expect(link('the HMAC did not match (signature mismatch), 6 requests')).toBe(
+    expect(reason('the HMAC did not match (signature mismatch)', '6 requests')).toBe(
       `/${TOKEN_ID}?signature=invalid&signatureReason=signature%20mismatch&window=128`,
     );
     // Inválidas e ausentes somadas não cabem num filtro só da Entrada: o número fica sem link.
@@ -247,13 +251,17 @@ describe('Dado o cartão "Health" de Checks', () => {
 
     const link = (name: string) =>
       screen.getByRole('link', { name: `${name}. Open in the Inbox` }).getAttribute('href');
+    const reason = (what: string, count: string) =>
+      screen
+        .getByRole('link', { name: `${what}. Open in the Inbox, ${count}` })
+        .getAttribute('href');
     expect(screen.getByRole('heading', { name: 'Decryption', level: 3 })).toBeTruthy();
     expect(screen.getByRole('img', { name: '40 valid, 8 invalid' })).toBeTruthy();
     expect(link('Decrypted, 40 requests')).toBe(`/${TOKEN_ID}?decryption=valid&window=128`);
-    expect(link('the encrypted attribute did not come as a JWE (downgrade), 4 requests')).toBe(
+    expect(reason('the encrypted attribute did not come as a JWE (downgrade)', '4 requests')).toBe(
       `/${TOKEN_ID}?decryption=invalid&decryptionReason=downgrade&window=128`,
     );
-    expect(link('Unknown encryption key, 2 requests')).toBe(
+    expect(reason('Unknown encryption key', '2 requests')).toBe(
       `/${TOKEN_ID}?decryption=unknown_kid&window=128`,
     );
     // Inválidas e chave desconhecida somadas não cabem num filtro só da Entrada.

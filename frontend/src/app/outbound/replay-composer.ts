@@ -108,7 +108,7 @@ export class ReplayComposer implements OnInit {
     return url ? (keepPath ? `${url}${this.suffix()}` : url) : '…';
   }
 
-  /** Nome do botão da mensagem: "Request to replay: #e41b7, POST /webhooks/stripe. Change". */
+  /** Nome do botão da mensagem, na ordem do que ele mostra: "Request to replay: POST #e41b7 /webhooks/stripe. Change". */
   protected pickLabel(): string {
     const request = this.chosen();
     if (!request) {
@@ -116,7 +116,7 @@ export class ReplayComposer implements OnInit {
     }
     const id = request.uuid.slice(0, 5);
     const path = this.suffix() || '/';
-    return $localize`Request to replay: #${id}:id:, ${request.method}:method: ${path}:path:. Change`;
+    return $localize`Request to replay: ${request.method}:method: #${id}:id: ${path}:path:. Change`;
   }
 
   /** Escolhe a mensagem na lista do botão "Change". */

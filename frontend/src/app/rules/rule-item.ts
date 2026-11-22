@@ -13,8 +13,8 @@ export interface RulePosition {
 /**
  * As três linhas de um item da lista de regras (C, RULES-01): prioridade, posição, nome,
  * indicadores e o status; o match em mono; e os hits (ou a causa do diagnóstico). Vai dentro do
- * botão da linha (ou do link da resposta padrão), que é quem recebe o clique e o foco; os `id`
- * servem ao nome e à descrição dele.
+ * botão da linha (ou do link da resposta padrão), que é quem recebe o clique e o foco; o texto
+ * dele é o nome do botão.
  */
 @Component({
   selector: 'app-rule-item',
@@ -33,14 +33,13 @@ export interface RulePosition {
         <span
           class="position"
           role="img"
-          [id]="baseId() + '-position'"
           [attr.aria-label]="position.label"
           [attr.title]="position.title"
           >{{ position.value === null ? '—' : '#' + position.value }}</span
         >
       }
       <span class="title">
-        <span class="name" [id]="baseId() + '-name'" [title]="name()">{{ name() }}</span>
+        <span class="name" [title]="name()">{{ name() }}</span>
         @if (created()) {
           <span class="created" i18n="badge on a rule created a moment ago">New</span>
         }
@@ -55,16 +54,14 @@ export interface RulePosition {
       }
       <app-status-code class="status" [status]="status()" [error]="fault() ?? faultText" />
     </span>
-    <span class="line2 match" [id]="baseId() + '-match'">{{ detail() }}</span>
+    <span class="line2 match">{{ detail() }}</span>
     @if (hits() !== null) {
-      <span class="line3 hits" [class.warn]="warn()" [id]="baseId() + '-hits'">{{ hits() }}</span>
+      <span class="line3 hits" [class.warn]="warn()">{{ hits() }}</span>
     }
   `,
   styleUrl: './rule-item.scss',
 })
 export class RuleItem {
-  /** Prefixo dos `id` do nome (`-name`), do match (`-match`) e dos hits (`-hits`). */
-  readonly baseId = input.required<string>();
   readonly name = input.required<string>();
   readonly priority = input<number | null>(null);
   readonly priorityTitle = input<string | null>(null);

@@ -1,6 +1,6 @@
 import { APIRequestContext } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { abrirItem, detalhes, item, itens, lista, lixeira } from './support/inbox';
+import { abrirItem, detalhes, item, itens, lista, lixeira, textoVisivel } from './support/inbox';
 
 import { readStorage, seedStorage } from './support/storage';
 
@@ -61,7 +61,7 @@ test.describe('Dado a lista lateral com três mensagens (checklist 6)', () => {
       await expect(linha.locator('app-method-badge')).toHaveText(method);
       await expect(linha.locator('app-method-badge')).toHaveClass(new RegExp(COLOR[method]));
       await expect(linha).toContainText(/a few seconds ago|\d+ s ago|just now/);
-      await expect(linha).not.toContainText(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
+      expect(await textoVisivel(linha)).not.toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
     }
   });
 

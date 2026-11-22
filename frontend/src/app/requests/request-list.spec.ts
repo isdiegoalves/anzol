@@ -38,6 +38,18 @@ describe('Dado a lista lateral de mensagens', () => {
 
   const element = () => fixture.nativeElement as HTMLElement;
   const items = () => [...element().querySelectorAll<HTMLElement>('.item')];
+  /** O nome que vem do conteúdo do botão: o texto dele sem o que é `aria-hidden`. */
+  const nameOf = (button: Element | null | undefined) => {
+    const copy = button?.cloneNode(true) as Element | undefined;
+    copy?.querySelectorAll('[aria-hidden="true"]').forEach((hidden) => hidden.remove());
+    return copy?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+  };
+  /** O texto que a tela mostra: sem o que só o leitor de tela ouve. */
+  const shown = (part: Element | null | undefined) => {
+    const copy = part?.cloneNode(true) as Element | undefined;
+    copy?.querySelectorAll('.app-spoken').forEach((spoken) => spoken.remove());
+    return copy?.textContent ?? '';
+  };
   const load = async (data: WebhookRequest[], total = data.length, isLast = true) => {
     const loaded = store.load(TOKEN_ID);
     http
@@ -234,13 +246,13 @@ describe('Dado a lista lateral de mensagens', () => {
 
     const route = items()[0].querySelector('.route') as HTMLElement;
     expect(route.getAttribute('title')).toBe(path);
-    expect(route.textContent?.trim()).toBe(path);
+    expect(shown(route).trim()).toBe(path);
     expect(route.querySelector('.start')?.textContent).toBe(
       ' /pedidos/2026/09/loja-centro/confirmacoes',
     );
     expect(route.querySelector('.end')?.textContent).toBe('/pagamento-aprovado');
-    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toMatch(
-      new RegExp(`^POST ${path}, #`),
+    expect(nameOf(items()[0].querySelector('.select'))).toMatch(
+      new RegExp(`^POST ?${path} .*#00000, from `),
     );
   });
 
@@ -258,7 +270,7 @@ describe('Dado a lista lateral de mensagens', () => {
     await fixture.whenStable();
 
     const text = (selector: string) =>
-      items().map((item) => item.querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim());
+      items().map((item) => shown(item.querySelector(selector)).replace(/\s+/g, ' ').trim());
     expect(text('.route-line')).toEqual([
       expect.stringMatching(/^POST \/ .+ ago$/),
       expect.stringMatching(/^GET \/a\?b=1 .+ ago$/),
@@ -267,18 +279,16 @@ describe('Dado a lista lateral de mensagens', () => {
       '— · not recorded payment_intent.succeeded #00000',
       '— · not recorded #00000',
     ]);
-    expect(element().textContent).not.toContain('192.168.0.1');
-    expect(element().textContent).not.toContain('Stripe/1.0');
+    expect(shown(element())).not.toContain('192.168.0.1');
+    expect(shown(element())).not.toContain('Stripe/1.0');
     // O IP fica no nome acessível.
-    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(
-      'from 192.168.0.1',
-    );
+    expect(nameOf(items()[0].querySelector('.select'))).toContain('from 192.168.0.1');
     // A data absoluta fica fora da linha: no title do tempo relativo e no nome do item (trava 2).
-    expect(items()[0].textContent).not.toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
+    expect(shown(items()[0])).not.toMatch(/[A-Z][a-z]{2} \d{1,2}, \d{4}/);
     expect(items()[0].querySelector('.ago')?.getAttribute('title')).toMatch(
       /^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)$/,
     );
-    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toMatch(
+    expect(nameOf(items()[0].querySelector('.select'))).toMatch(
       /#00000.*[A-Z][a-z]{2} \d{1,2}, \d{4}.*, unread$/,
     );
     expect(items().map((item) => item.classList.contains('unread'))).toEqual([true, false]);
@@ -457,9 +467,9 @@ describe('Dado a lista lateral de mensagens', () => {
       const outra = '0b8f2c4e-1d2a-4c3b-9e5f-6a7b8c9d0e1f';
       const reading = TestBed.inject(TokenStore).load(outra);
       await grouped();
-      const eventA = () => events()[1].getAttribute('aria-label');
+      const eventA = () => nameOf(events()[1]);
 
-      expect(eventA()).toMatch(/^Event evt_a, /);
+      expect(eventA()).toMatch(/^POST\/evt_a/);
       expect(eventA()).not.toContain('came before the asked wait');
 
       http.expectOne(`/token/${outra}`).flush(token({ uuid: outra, retry_after: '3' }));
@@ -471,12 +481,13 @@ describe('Dado a lista lateral de mensagens', () => {
     it('deve mostrar o evento no lugar das tentativas, com a trilha e sem selo de julgamento', async () => {
       await grouped();
 
-      expect(events().map((event) => event.getAttribute('aria-label'))).toEqual([
+      // Sem leiaute no jsdom, os blocos do nome vêm colados: no navegador, cada um vira uma palavra.
+      expect(events().map((event) => nameOf(event))).toEqual([
         expect.stringMatching(
-          /^Event evt_b, POST \/, 2 attempts in 7 s, answers 429 429, newest at .+\. Open the newest attempt$/,
+          /^POST\/evt_b.+answers 429 429 2 attempts in 7 sOpen the newest attempt$/,
         ),
         expect.stringMatching(
-          /^Event evt_a, POST \/, 3 attempts in 6 s, answers 429 429 200, 1 attempt came before the asked wait, newest at .+\. Open the newest attempt$/,
+          /^POST\/evt_a.+answers 429 429 200 3 attempts in 6 s · 1 attempt came before the asked waitOpen the newest attempt$/,
         ),
       ]);
       expect([...events()[1].querySelectorAll('.seal')].map((seal) => seal.textContent)).toEqual([
@@ -524,7 +535,7 @@ describe('Dado a lista lateral de mensagens', () => {
       expect(chevron('evt_a')?.getAttribute('aria-expanded')).toBe('true');
       expect(
         items()
-          .map((item) => item.querySelector('.select')?.getAttribute('aria-label') ?? '')
+          .map((item) => nameOf(item.querySelector('.select')))
           .map((label) => /^Attempt \d of 3, (\d+ s after the previous, )?/.exec(label)?.[0]),
       ).toEqual([
         'Attempt 3 of 3, 5 s after the previous, ',
@@ -661,7 +672,7 @@ describe('Dado a lista lateral de mensagens', () => {
       expect(seal?.textContent?.trim()).toBe(texto);
       expect(seal?.getAttribute('title')).toBe(rotulo);
       expect(seal?.classList).toContain(tone);
-      expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(rotulo);
+      expect(nameOf(items()[0].querySelector('.select'))).toContain(rotulo);
     },
   );
 
@@ -762,7 +773,7 @@ describe('Dado a lista lateral de mensagens', () => {
       expect(seal?.querySelector('.title')?.textContent).toBe(selo);
       expect(seal?.getAttribute('title')).toBe(nome);
       expect(seal?.classList).toContain(tom);
-      expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(nome);
+      expect(nameOf(items()[0].querySelector('.select'))).toContain(nome);
     },
   );
 
@@ -1493,9 +1504,7 @@ describe('Dado a lista lateral de mensagens', () => {
       '',
       'A',
     ]);
-    expect(items()[2].querySelector('.select')?.getAttribute('aria-label')).toMatch(
-      /compared as A$/,
-    );
+    expect(nameOf(items()[2].querySelector('.select'))).toMatch(/compared as A$/);
   });
 
   it('deve sair do modo de escolha Quando "Cancel" é clicado', async () => {
@@ -1549,7 +1558,7 @@ describe('Dado a lista lateral de mensagens', () => {
     expect(seal?.getAttribute('title')).toBe(
       'Signature invalid: the HMAC did not match (signature mismatch)',
     );
-    expect(items()[0].querySelector('.select')?.getAttribute('aria-label')).toContain(
+    expect(nameOf(items()[0].querySelector('.select'))).toContain(
       'Signature invalid: the HMAC did not match (signature mismatch)',
     );
   });

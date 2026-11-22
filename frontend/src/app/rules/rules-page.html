@@ -278,20 +278,10 @@
                       class="open-rule"
                       [attr.aria-current]="open ? 'true' : null"
                       [attr.aria-description]="inWords(item.rule)"
-                      [attr.aria-labelledby]="'rule-' + item.index + '-name'"
-                      [attr.aria-describedby]="
-                        'rule-' +
-                        item.index +
-                        '-position rule-' +
-                        item.index +
-                        '-match rule-' +
-                        item.index +
-                        '-hits'
-                      "
+                      [attr.aria-describedby]="'rule-' + item.index + '-hits'"
                       (click)="editRule(item.rule)"
                     >
                       <app-rule-item
-                        [baseId]="'rule-' + item.index"
                         [name]="item.rule.name"
                         [priority]="item.rule.priority ?? defaultPriority"
                         [priorityTitle]="priorityTitleOf(item.rule)"
@@ -418,11 +408,8 @@
                   class="open-rule"
                   [routerLink]="['/', tokenId(), 'checks']"
                   [queryParams]="{ section: 'response' }"
-                  aria-labelledby="rules-default-name"
-                  aria-describedby="rules-default-match rules-default-hits"
                 >
                   <app-rule-item
-                    [baseId]="'rules-default'"
                     name="Default response"
                     i18n-name
                     [status]="tokens.shown()?.default_status ?? defaultStatus"

@@ -130,7 +130,8 @@ export interface ItemView {
   sealLetters: number;
   /** Todas as letras desse selo: o que ele ocupa inteiro. */
   sealLength: number;
-  label: string;
+  /** O que o nome do item diz e a linha não mostra; vai depois do texto visível. */
+  spoken: string;
   /** `null` na falha de rede e sem registro: não há status para filtrar. */
   status: string | null;
 }
@@ -771,9 +772,8 @@ export class RequestList {
         (check): check is CheckResult => !!check && check.tone !== 'none',
       ),
     ];
-    const label = [
-      `${request.method} ${pipeline.route}`,
-      `#${request.uuid.substring(0, 5)}`,
+    const spoken = [
+      '',
       $localize`from ${request.ip}:ip:`,
       localDate(request.created_at),
       ...[pipeline.signature, pipeline.schema, pipeline.decryption]
@@ -794,7 +794,7 @@ export class RequestList {
       seals,
       sealLetters: legibleLetters(pipeline.rule.short),
       sealLength: pipeline.rule.short.length,
-      label,
+      spoken,
       status: request.response?.status === undefined ? null : String(request.response.status),
     };
   }

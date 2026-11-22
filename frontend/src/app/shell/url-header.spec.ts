@@ -132,9 +132,9 @@ describe('Dado o cabeçalho da URL aberta', () => {
     await fixture.whenStable();
 
     const chip = screen.getByRole('link', {
-      name: '128 requests, limit of 1000: auto cleanup keeps the most recent',
+      name: /^128\s*requests\s*· limit 1000\s*\(auto cleanup keeps the most recent\)$/,
     });
-    expect(chip.textContent?.replace(/\s+/g, ' ').trim()).toBe('128 · limit 1000');
+    expect(chip.querySelector('.keeps')?.textContent?.trim()).toBe('· limit 1000');
     expect(chip.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=response`);
   });
 
@@ -148,9 +148,9 @@ describe('Dado o cabeçalho da URL aberta', () => {
       await fixture.whenStable();
 
       const chip = screen.getByRole('link', {
-        name: '128 requisições, limite de 1000: a limpeza automática guarda as mais recentes',
+        name: /^128\s*requisições\s*· limite 1000\s*\(a limpeza automática guarda as mais recentes\)$/,
       });
-      expect(chip.textContent?.replace(/\s+/g, ' ').trim()).toBe('128 · limite 1000');
+      expect(chip.querySelector('.keeps')?.textContent?.trim()).toBe('· limite 1000');
     } finally {
       clearTranslations();
     }
@@ -163,7 +163,8 @@ describe('Dado o cabeçalho da URL aberta', () => {
     store.total.set(1);
     await fixture.whenStable();
 
-    expect(screen.getByRole('link', { name: '1 request' }).textContent?.trim()).toBe('1');
+    const chip = screen.getByRole('link', { name: /^1\s*request$/ });
+    expect(chip.querySelector('.keeps')).toBeNull();
   });
 
   describe('Dado "Open another URL…" no seletor', () => {
@@ -253,7 +254,7 @@ describe('Dado o cabeçalho da URL aberta', () => {
     );
 
     const selo = screen.getByRole('link', {
-      name: 'E2EE lab URL, expires in 5 hours. Open Checks',
+      name: 'E2EE lab, expires in 5 hours. Open Checks',
     });
     expect(selo.textContent?.trim()).toBe('Lab · expires in 5 hours');
     expect(selo).toHaveProperty(
