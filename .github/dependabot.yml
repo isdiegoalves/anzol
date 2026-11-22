@@ -36,6 +36,10 @@ updates:
         update-types: ["version-update:semver-minor"]
       - dependency-name: "@axe-core/playwright"
         update-types: ["version-update:semver-minor"]
+      # O jsdom 31 casa :focus-visible no controle clicado, o que o navegador não faz, e os testes da tela que dependem
+      # disso deixam de representar o navegador.
+      - dependency-name: "jsdom"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: "/"
