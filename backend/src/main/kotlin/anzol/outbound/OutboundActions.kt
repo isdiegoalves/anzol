@@ -49,7 +49,7 @@ class OutboundActions(
     ): Dispatch =
         when (val parsed = parseReplay(body, hasBody = message.content.isNotEmpty())) {
             is Parsed.Valid -> {
-                actions.record(token.uuid, DefenseAction.OUTBOUND, body)
+                actions.record(token.uuid, DefenseAction.OUTBOUND) { body }
                 replay(token, message, parsed.value)
             }
 
@@ -91,7 +91,7 @@ class OutboundActions(
                 is Parsed.Valid -> parsed.value
                 is Parsed.Invalid -> return Dispatch.Invalid(parsed.errors)
             }
-        actions.record(token.uuid, DefenseAction.OUTBOUND, body)
+        actions.record(token.uuid, DefenseAction.OUTBOUND) { body }
         val content = input.body.toByteArray(UTF_8)
         val signed = if (input.sign && signature != null) signature.sign(content, clock.instant()) else emptyMap()
         val overLimits = input.headers.overLimits()

@@ -40,7 +40,7 @@ class RuleStore(
         } else {
             redis.opsForValue().set(RedisKeys.rules(id), json, properties.expiry)
         }
-        actions.record(id, DefenseAction.RULE_WRITE, json)
+        actions.record(id, DefenseAction.RULE_WRITE) { json }
         return rules
     }
 }

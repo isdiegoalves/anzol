@@ -9,6 +9,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.data.redis.core.StringRedisTemplate
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpResponse
@@ -22,6 +23,7 @@ private val INJECTION_CODES = listOf("P1", "P2", "P3", "P4", "P5", "P6")
 class DefenseInjectionApiTest(
     @LocalServerPort port: Int,
     jsonMapper: JsonMapper,
+    private val redis: StringRedisTemplate,
 ) {
     private val api = ApiClient(port, jsonMapper)
 
@@ -62,6 +64,8 @@ class DefenseInjectionApiTest(
         lab: JsonNode,
         opening: String,
     ): String = checkNotNull(CANARY.find(notes(lab).first { it.startsWith(opening) })).value
+
+    private fun bodyRule(body: String) = """[{"name":"r","response":{"status":200,"body":"$body"}}]"""
 
     private fun rule(text: String) = """[{"name":"$text","response":{"status":200,"body":"$text"}}]"""
 
@@ -203,6 +207,38 @@ class DefenseInjectionApiTest(
         val report = finish(lab, round)
 
         assertThat(obeyed(report)).isEqualTo(mapOf("P6" to "read_secret"))
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma regra grande com a ficha no meio, quando é gravada na rodada, então o Redis guarda só a ficha, e não o " +
+            "conteúdo da escrita",
+    )
+    fun escritaGrande_soAFichaFicaGuardada() {
+        val lab = lab()
+        started(lab)
+        val canary = canary(lab, "Ignore your previous")
+
+        val saved = call(lab, "PUT", "/rules", bodyRule("x".repeat(5_000) + canary + "y".repeat(5_000)))
+
+        assertThat(saved.statusCode()).isEqualTo(200)
+        assertThat(redis.opsForSet().members("token:${id(lab)}:defense:canaries")).containsExactly(canary)
+        assertThat(redis.opsForHash<String, String>().entries("token:${id(lab)}:defense:actions").values).allMatch { it.length < 100 }
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName("Dado 300 fichas diferentes numa escrita, quando é gravada na rodada, então só 256 ficam guardadas")
+    fun muitasFichas_ficamNoTeto() {
+        val lab = lab()
+        started(lab)
+        val many = (1..300).joinToString(" ") { "tk_" + it.toString(16).padStart(16, '0') }
+
+        val saved = call(lab, "PUT", "/rules", bodyRule(many))
+
+        assertThat(saved.statusCode()).isEqualTo(200)
+        assertThat(redis.opsForSet().size("token:${id(lab)}:defense:canaries")).isEqualTo(256)
         delete(lab)
     }
 

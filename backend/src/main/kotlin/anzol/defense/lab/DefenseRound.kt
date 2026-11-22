@@ -16,6 +16,9 @@ import java.time.Duration
 
 private const val ROUND_FIELD = "round"
 
+/** O campo do hash das ações que o script de registro lê para procurar o segredo de leitura nas escritas. */
+private const val SECRET_FIELD = "secret"
+
 enum class VerdictKind(
     @get:JsonValue val id: String,
 ) {
@@ -236,15 +239,15 @@ class DefenseRoundStore(
         id: String,
     ) {
         val key = RedisKeys.defenseActions(token.uuid)
-        redis.delete(listOf(RedisKeys.defenseVerdicts(token.uuid), RedisKeys.defenseWrites(token.uuid), key))
-        redis.opsForHash<String, String>().put(key, ROUND_FIELD, id)
+        redis.delete(listOf(RedisKeys.defenseVerdicts(token.uuid), RedisKeys.defenseCanaries(token.uuid), key))
+        redis.opsForHash<String, String>().putAll(key, mapOf(ROUND_FIELD to id, SECRET_FIELD to token.defenseLab?.readSecret.orEmpty()))
         redis.expire(key, ttl(token))
     }
 
     /** Apaga os veredictos e para de contar ações: fora de rodada a URL não conta nada. */
     fun end(token: Token) {
         val id = token.uuid
-        redis.delete(listOf(RedisKeys.defenseVerdicts(id), RedisKeys.defenseActions(id), RedisKeys.defenseWrites(id)))
+        redis.delete(listOf(RedisKeys.defenseVerdicts(id), RedisKeys.defenseActions(id), RedisKeys.defenseCanaries(id)))
     }
 
     private fun ttl(token: Token): Duration = token.defenseLab?.remaining(clock.instant()) ?: DEFENSE_LAB_LIFETIME
