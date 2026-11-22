@@ -3,6 +3,8 @@ package anzol.rules
 import anzol.AnzolProperties
 import anzol.RedisKeys
 import anzol.TokenId
+import anzol.defense.lab.DefenseAction
+import anzol.defense.lab.DefenseActionLog
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
@@ -18,6 +20,7 @@ class RuleStore(
     private val redis: StringRedisTemplate,
     private val jsonMapper: JsonMapper,
     private val properties: AnzolProperties,
+    private val actions: DefenseActionLog,
 ) {
     fun find(id: TokenId): List<Rule> {
         val json = redis.opsForValue().getAndExpire(RedisKeys.rules(id), properties.expiry) ?: return emptyList()
@@ -31,11 +34,13 @@ class RuleStore(
         id: TokenId,
         rules: List<Rule>,
     ): List<Rule> {
+        val json = jsonMapper.writeValueAsString(rules)
         if (rules.isEmpty()) {
             redis.delete(RedisKeys.rules(id))
         } else {
-            redis.opsForValue().set(RedisKeys.rules(id), jsonMapper.writeValueAsString(rules), properties.expiry)
+            redis.opsForValue().set(RedisKeys.rules(id), json, properties.expiry)
         }
+        actions.record(id, DefenseAction.RULE_WRITE) { json }
         return rules
     }
 }
