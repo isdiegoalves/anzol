@@ -7,7 +7,9 @@ import { seedStorage } from './support/storage';
 const rotulos = (page: Page) =>
   itens(page)
     .locator('button.select')
-    .evaluateAll((botoes) => botoes.map((botao) => botao.getAttribute('aria-label') ?? ''));
+    .evaluateAll((botoes) =>
+      botoes.map((botao) => botao.textContent?.replace(/\s+/g, ' ').trim() ?? ''),
+    );
 
 type Regra = Record<string, unknown>;
 const regra = (name: string): Regra => ({

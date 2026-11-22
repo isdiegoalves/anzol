@@ -19,8 +19,8 @@ import {
 // - SUPOSIÇÃO: no painel "From this request", o {path} do cabeçalho é o nome como a mensagem gravou (minúsculas) e o
 //   {value} do corpo vem como literal JSON (`"pago"`, `10`); os testes aceitam o nome em qualquer caixa e o texto com
 //   ou sem aspas.
-// - SUPOSIÇÃO: o {helper} de `button "Insert {helper}"` é o nome do helper como se escreve no template (`jsonPath`,
-//   `hmac`); a cola continua dentro de "Template helpers" (aberta aqui se vier recolhida).
+// - SUPOSIÇÃO: o {helper} de `button "Insert {helper}"` é o trecho que o botão mostra e insere (`{{jsonPath …}}`,
+//   `{{hmac …}}`); a cola continua dentro de "Template helpers" (aberta aqui se vier recolhida).
 // - SUPOSIÇÃO: a visão Form | JSON continua um segmentado; "Form" pode ser `radio` (o `mat-button-toggle` de hoje) ou
 //   `button` (o guia diz `button "Form"`).
 // - SUPOSIÇÃO: o testador de regex/JSONPath usa a última mensagem recebida quando o editor não veio de `?from=`.
@@ -38,7 +38,7 @@ function caixa(regiao: Locator, nome: string): Locator {
 
 /** Abre o `details` "Template helpers" se a largura o deixar recolhido. */
 async function abrirAjudaDoTemplate(regiao: Locator): Promise<void> {
-  const inserir = regiao.getByRole('button', { name: 'Insert jsonPath' });
+  const inserir = regiao.getByRole('button', { name: /^Insert \{\{jsonPath / });
   if (!(await inserir.isVisible())) {
     await regiao.getByText('Template helpers').click();
   }
@@ -285,11 +285,11 @@ test.describe('Dado a cola de helpers do template (WM-16, C5)', () => {
     const corpo = caixa(regra, 'Response body');
 
     await corpo.click();
-    await regra.getByRole('button', { name: 'Insert jsonPath' }).click();
+    await regra.getByRole('button', { name: /^Insert \{\{jsonPath / }).click();
     await expect(corpo).toHaveValue(/\{\{jsonPath request\.body '\$[^']*'\}\}/);
     await corpo.fill('');
     await corpo.click();
-    await regra.getByRole('button', { name: 'Insert hmac' }).click();
+    await regra.getByRole('button', { name: /^Insert \{\{hmac / }).click();
     await expect(corpo).toHaveValue(/\{\{hmac /);
   });
 });
@@ -388,7 +388,7 @@ test.describe('Dado a regra em palavras (WM-04)', () => {
     await abrirRegras(page, tokenId);
 
     const item = linhaDaRegra(page, 'Pix').locator('td.item').getByRole('button');
-    await expect(item).toHaveAccessibleName('Pix');
+    await expect(item).toHaveAccessibleName(/^P\d+ Position \d+ of \d+ Pix 201 Created /);
     await expect(item).toHaveAttribute(
       'aria-description',
       /^When a POST to \/pagamentos\b.*answer 201/,

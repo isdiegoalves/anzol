@@ -147,10 +147,15 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       expect(row('r2').querySelector('.priority')?.getAttribute('title')).toBe(
         'Priority 1 · lower answers first; ties keep the list order',
       );
-      // A posição entra na descrição do botão da linha.
+      // A posição entra no nome do botão da linha.
       expect(
-        within(row('r1')).getByRole('button', { name: 'Rule 1' }).getAttribute('aria-describedby'),
-      ).toContain('-position');
+        within(within(row('r1')).getByRole('button', { name: /Position .*Rule 1/ })).getByRole(
+          'img',
+          {
+            name: /^Position /,
+          },
+        ),
+      ).toBeTruthy();
       await expectNoAxeViolations(container);
     });
 
@@ -731,11 +736,10 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
           .flush({ data: [], total: 0, is_last_page: true }),
       );
 
-      const cartao = await screen.findByRole('button', { name: 'Describe it in words' });
-      expect(cartao.getAttribute('aria-describedby')).toBeTruthy();
-      expect(
-        document.getElementById(cartao.getAttribute('aria-describedby') ?? '')?.textContent,
-      ).toBe('Say what should answer; if this server has AI set up, it drafts the rule.');
+      const cartao = await screen.findByRole('button', { name: /^Describe it in words/ });
+      expect(cartao.querySelector('.hint')?.textContent).toBe(
+        'Say what should answer; if this server has AI set up, it drafts the rule.',
+      );
 
       await userEvent.click(cartao);
       expect(TestBed.inject(RuleStore).pendingFocus()).toBe('suggest');
@@ -756,25 +760,27 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       const mensagem = webhookRequest(7);
       await flushLatest([mensagem]);
 
-      for (const name of [
+      for (const title of [
         'Describe it in words',
         'Start from a template',
         'Create from the latest request',
       ]) {
-        expect(await screen.findByRole('button', { name })).toBeTruthy();
+        expect(await screen.findByRole('button', { name: new RegExp(`^${title}`) })).toBeTruthy();
       }
       expect(screen.getByText(/No rules yet/)).toBeTruthy();
       await expectNoAxeViolations(container);
 
-      await userEvent.click(screen.getByRole('button', { name: 'Create from the latest request' }));
+      await userEvent.click(
+        screen.getByRole('button', { name: /^Create from the latest request/ }),
+      );
       expect(navigate).toHaveBeenCalledWith(['/', TOKEN_ID, 'rules', 'new'], {
         queryParams: { from: mensagem.uuid },
       });
 
-      await userEvent.click(screen.getByRole('button', { name: 'Describe it in words' }));
+      await userEvent.click(screen.getByRole('button', { name: /^Describe it in words/ }));
       expect(TestBed.inject(RuleIntents).pending()?.openSuggest).toBe(true);
 
-      await userEvent.click(screen.getByRole('button', { name: 'Start from a template' }));
+      await userEvent.click(screen.getByRole('button', { name: /^Start from a template/ }));
       expect(await screen.findByRole('menu', { name: 'Rule templates' })).toBeTruthy();
     });
 
@@ -782,8 +788,8 @@ describe('Dado a lista de Regras com ordem e diagnóstico (F2)', () => {
       await open([]);
       await flushLatest([]);
 
-      expect(screen.queryByRole('button', { name: 'Create from the latest request' })).toBeNull();
-      expect(screen.getByRole('button', { name: 'Describe it in words' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /^Create from the latest request/ })).toBeNull();
+      expect(screen.getByRole('button', { name: /^Describe it in words/ })).toBeTruthy();
     });
   });
 });

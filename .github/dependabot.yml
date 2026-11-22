@@ -30,12 +30,10 @@ updates:
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-      # O axe 4.14 passa a cobrar a WCAG 2.5.3 (o nome acessível contém o texto visível) em linhas da lista que
-      # ainda não cumprem; ele sobe junto com essa correção da tela.
-      - dependency-name: "axe-core"
-        update-types: ["version-update:semver-minor"]
-      - dependency-name: "@axe-core/playwright"
-        update-types: ["version-update:semver-minor"]
+      # O jsdom 31 casa :focus-visible no controle clicado, o que o navegador não faz, e os testes da tela que dependem
+      # disso deixam de representar o navegador.
+      - dependency-name: "jsdom"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: "/"

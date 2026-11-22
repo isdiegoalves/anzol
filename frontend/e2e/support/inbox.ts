@@ -45,6 +45,15 @@ export function item(page: Page, uuid: string): Locator {
   });
 }
 
+/** O texto que a linha mostra: sem o `.app-spoken`, que só o leitor de tela ouve. */
+export function textoVisivel(alvo: Locator): Promise<string> {
+  return alvo.evaluate((el) => {
+    const copia = el.cloneNode(true) as Element;
+    copia.querySelectorAll('.app-spoken').forEach((oculto) => oculto.remove());
+    return copia.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+  });
+}
+
 /** O botão que abre a mensagem (o nome acessível resume o item). */
 export function abrirItem(page: Page, uuid: string): Locator {
   return item(page, uuid).getByRole('button', {

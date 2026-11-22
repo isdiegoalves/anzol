@@ -348,7 +348,7 @@ describe('Dado o editor de condições e resposta', () => {
       expect(root().textContent).toContain(
         'Value from the JSON body. Simple paths only ($.a.b[0]).',
       );
-      await click('button[aria-label="Insert hmac"]');
+      await click('button[aria-label="Insert {{hmac request.body}}"]');
       expect(await (await input('Response body')).getValue()).toBe('{{hmac request.body}}');
     });
   });

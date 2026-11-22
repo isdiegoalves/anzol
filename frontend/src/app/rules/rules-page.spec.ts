@@ -203,10 +203,12 @@ describe('Dado a página Rules', () => {
     // Sem botões Edit/Delete na linha: a linha inteira abre o editor (RULES-04).
     expect(within(row('r1')).queryByRole('button', { name: 'Edit' })).toBeNull();
     expect(within(row('r1')).queryByRole('button', { name: 'Delete' })).toBeNull();
-    expect(within(row('r1')).getByRole('button', { name: 'Rule 1' })).toBe(openButton('r1'));
+    expect(within(row('r1')).getByRole('button', { name: /Position .*Rule 1/ })).toBe(
+      openButton('r1'),
+    );
     // A resposta padrão é um link para Checks › Response, com o tipo e o atraso (RULES-09).
     const padrao = document.querySelector('tfoot tr') as HTMLElement;
-    const link = within(padrao).getByRole('link', { name: 'Default response' });
+    const link = within(padrao).getByRole('link', { name: /^Default response/ });
     expect(link.getAttribute('href')).toBe(`/${TOKEN_ID}/checks?section=response`);
     expect(padrao.textContent).toContain('When no rule matches · text/plain · no delay');
     expect(padrao.querySelector('.status .code')?.textContent?.trim()).toBe('200');

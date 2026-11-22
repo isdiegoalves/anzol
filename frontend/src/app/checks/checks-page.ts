@@ -365,15 +365,14 @@ function statesOf(token: Token | null): Partial<Record<PageSection, SectionState
     signature: same(
       token.signature ? signatureProviderLabel(token.signature.provider) : $localize`Off`,
     ),
-    schema: token.schema
-      ? {
-          shown: dialect ? $localize`On · ${dialect}:dialect:` : $localize`On`,
-          spoken: $localize`on`,
-        }
-      : { shown: $localize`Off`, spoken: $localize`off` },
-    e2ee: token.e2ee
-      ? { shown: $localize`On`, spoken: $localize`on` }
-      : { shown: $localize`Off`, spoken: $localize`off` },
+    schema: same(
+      token.schema
+        ? dialect
+          ? $localize`On · ${dialect}:dialect:`
+          : $localize`On`
+        : $localize`Off`,
+    ),
+    e2ee: same(token.e2ee ? $localize`On` : $localize`Off`),
     response: same(String(token.default_status)),
     privacy: token.protected
       ? { shown: $localize`Protected`, spoken: $localize`protected` }

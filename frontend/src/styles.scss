@@ -673,3 +673,13 @@ pre code.hljs {
   inherits: false;
   initial-value: 0;
 }
+
+// Texto só para o leitor de tela, que completa o nome de um controle nomeado pelo próprio conteúdo.
+.app-spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

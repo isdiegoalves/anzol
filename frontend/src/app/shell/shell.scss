@@ -86,6 +86,11 @@
 }
 
 // Não lidas (Inbox) e atenção (Checks), como no protótipo C: badge e ponto de erro no ícone.
+// O número sai do CSS: fora do texto do link, o nome ("Inbox, 3 unread") é o que diz a contagem (WCAG 2.5.3).
+.badge::after {
+  content: attr(data-count);
+}
+
 .badge {
   position: absolute;
   top: -4px;

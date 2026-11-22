@@ -313,10 +313,10 @@ describe('Dado a página Checks', () => {
       ]);
       expect(links.map((link) => link.getAttribute('aria-label'))).toEqual([
         'Signature, Stripe',
-        'Schema, on',
+        'Schema, On · 2020-12',
         'Response, 429',
         'Privacy, open',
-        'Decryption, off',
+        'Decryption, Off',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([
@@ -506,7 +506,7 @@ describe('Dado a página Checks', () => {
       expect(changesBar()?.textContent).toContain(
         '2 unsaved changes: JSON Schema, Default status code',
       );
-      expect(screen.getByRole('link', { name: 'Schema, off, unsaved' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Schema, Off, unsaved' })).toBeTruthy();
       expect(screen.getByRole('link', { name: 'Response, 200, unsaved' })).toBeTruthy();
       expect(screen.getByRole('link', { name: 'Privacy, open' })).toBeTruthy();
       await userEvent.click(saveButton());
@@ -785,7 +785,7 @@ describe('Dado a página Checks', () => {
       expect(
         [
           'Signature verification, Off',
-          'Schema validation, off',
+          'Schema validation, Off',
           'Response, 201',
           'Privacy, open',
           'Health',
