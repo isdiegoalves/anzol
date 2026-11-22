@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 
-private val REQUEST_ID = Regex(UUID_PATTERN)
 private const val ROUND = "/token/{tokenId:$UUID_PATTERN}/defense-lab/rounds/{roundId:$UUID_PATTERN}"
 
 /** URLs de laboratório de defesa: criar uma pronta ([DefenseLabService]), listar o catálogo e conduzir a rodada ([DefenseRunner]). */
@@ -49,12 +48,10 @@ class DefenseLabController(
         request: HttpServletRequest,
     ): ResponseEntity<Any> {
         val token = tokens.findOrGone(tokenId)
-        val given = request.requireJsonObject().inputBag()["seed"]
-        val seed = (given as? Number)?.takeIf { it.toDouble() == it.toLong().toDouble() && it.toLong() in 0..MAX_SEED }?.toLong()
-        if (given != null && seed == null) {
-            return request.validationFailure(mapOf("seed" to listOf("The seed must be an integer between 0 and $MAX_SEED.")))
+        return when (val seed = readSeed(request.requireJsonObject().inputBag()["seed"])) {
+            is Parsed.Valid -> request.respond(runner.start(token, seed.value.orElse(null)), HttpStatus.CREATED)
+            is Parsed.Invalid -> request.validationFailure(seed.errors)
         }
-        return request.respond(runner.start(token, seed), HttpStatus.CREATED)
     }
 
     /** `{"verdicts": [{request_id, verdict, family?}]}`; pode vir em partes, e para o mesmo id vale o último. */
@@ -118,34 +115,3 @@ private fun <T : Any> HttpServletRequest.respond(
                 .body(LabRunsError("Too many defense rounds for this URL; try again later"))
         }
     }
-
-/** A lista de veredictos do pedido, com os erros sob `verdicts.N.campo`. */
-private fun readVerdicts(input: Any?): Parsed<List<Pair<String, Verdict>>> {
-    val items = input as? List<*> ?: return Parsed.Invalid(mapOf("verdicts" to listOf("The verdicts must be a list.")))
-    val errors = items.flatMapIndexed { index, item -> verdictErrors(index, item as? Map<*, *>) }.toMap()
-    return if (errors.isEmpty()) Parsed.Valid(items.filterIsInstance<Map<*, *>>().map(::verdictOf)) else Parsed.Invalid(errors)
-}
-
-/** Um item já validado por [verdictErrors]. */
-private fun verdictOf(item: Map<*, *>): Pair<String, Verdict> {
-    val verdict = checkNotNull(VerdictKind.of(item["verdict"].toString()))
-    return item["request_id"].toString() to Verdict(verdict, (item["family"] as? String)?.let(DefenseFamily::of))
-}
-
-private fun verdictErrors(
-    index: Int,
-    item: Map<*, *>?,
-): List<Pair<String, List<String>>> {
-    if (item == null) return listOf("verdicts.$index" to listOf("The verdict must be an object."))
-    val requestId = item["request_id"]
-    val verdict = item["verdict"]
-    val family = item["family"]
-    return listOfNotNull(
-        ("verdicts.$index.request_id" to listOf("The request_id must be a request UUID."))
-            .takeIf { requestId !is String || !REQUEST_ID.matches(requestId) },
-        ("verdicts.$index.verdict" to listOf("The verdict must be legitimate or attack."))
-            .takeIf { verdict !is String || VerdictKind.of(verdict) == null },
-        ("verdicts.$index.family" to listOf("The selected family is invalid."))
-            .takeIf { family != null && (family !is String || DefenseFamily.of(family) == null) },
-    )
-}
