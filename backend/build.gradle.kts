@@ -38,7 +38,7 @@ repositories {
 dependencyManagement {
     imports {
         // Spring AI 2.0.2 é compilado contra o Spring Boot 4.1.2 (o mesmo deste projeto) e o Spring Framework 7.0.10.
-        mavenBom("org.springframework.ai:spring-ai-bom:2.0.2")
+        mavenBom("org.springframework.ai:spring-ai-bom:2.0.3")
     }
 }
 
