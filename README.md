@@ -242,7 +242,7 @@ diz ao CI se passou. Todos os comandos e opções em [`docs/cli.md`](docs/cli.md
 [`tests/contract/README.md`](tests/contract/README.md).
 
 **MCP**: com `ANZOL_MCP_ENABLED=true` (ligado no compose), o app é um servidor [MCP](https://modelcontextprotocol.io)
-em `/mcp` com 18 ferramentas sobre a mesma API ([detalhes](docs/mcp-e-ia.md#mcp)):
+em `/mcp` com 23 ferramentas sobre a mesma API ([detalhes](docs/mcp-e-ia.md#mcp)):
 
 ```bash
 claude mcp add --transport http anzol http://127.0.0.1:8084/mcp
