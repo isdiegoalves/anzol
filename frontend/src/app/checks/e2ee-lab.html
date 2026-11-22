@@ -87,13 +87,11 @@
                   {{ description.text }}
                 </td>
                 <td class="outcome">
-                  <span class="status">{{ row.expected.status }}</span
-                  >&ngsp;
+                  <span class="status">{{ row.expected.status }}</span>&ngsp;
                   <code>{{ outcome(row.expected) }}</code>
                 </td>
                 <td class="outcome">
-                  <span class="status">{{ row.actual.status }}</span
-                  >&ngsp;
+                  <span class="status">{{ row.actual.status }}</span>&ngsp;
                   <code>{{ outcome(row.actual) }}</code>
                   @if (row.actual.data_matches === true) {
                     <span class="data" i18n>data same as sent</span>

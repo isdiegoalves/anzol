@@ -75,8 +75,7 @@ function bodyFields(content: string | null): BodyField[] {
         <div class="fields">
           @for (field of shown(); track field.path) {
             <button type="button" class="field" (click)="pick(field)">
-              <code>{{ field.path }}</code
-              >: {{ field.shown }}
+              <code>{{ field.path }}</code>: {{ field.shown }}
             </button>
           } @empty {
             <p class="none" i18n>No field matches the filter.</p>
