@@ -30,7 +30,7 @@
         </thead>
         <tbody>
           @for (row of list; track row.id; let index = $index) {
-            <tr [class.marked]="markOf(row.id) !== ''">
+            <tr>
               <th scope="row">
                 {{ index + 1 }}
                 <a

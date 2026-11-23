@@ -105,16 +105,6 @@ h4 {
   min-width: 13rem;
 }
 
-tr.marked th {
-  box-shadow: inset 3px 0 0 var(--mat-sys-primary);
-}
-
-@media (forced-colors: active) {
-  tr.marked th {
-    box-shadow: inset 3px 0 0 var(--app-forced-selected);
-  }
-}
-
 .counter {
   margin: 0;
   font: var(--mat-sys-body-medium);
