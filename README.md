@@ -247,7 +247,8 @@ R=$(curl -s -X POST $A/token/$T/defense-lab/rounds -H "$H" -H 'Content-Type: app
   -d '{"seed": 20261123}' | jq -r .round_id)
 curl -s "$A/token/$T/requests?per_page=50" -H "$H" | jq '{verdicts: [.data[] | {request_id: .uuid,
   verdict: (if .signature.valid then "legitimate" else "attack" end)}]}' |
-  curl -s -o /dev/null -X POST $A/token/$T/defense-lab/rounds/$R/verdicts -H "$H" -H 'Content-Type: application/json' -d @-
+  curl -s -o /dev/null -X POST $A/token/$T/defense-lab/rounds/$R/verdicts -H "$H" \
+    -H 'Content-Type: application/json' -d @-
 curl -s -X PUT $A/token/$T/rules -H "$H" -H 'Content-Type: application/json' -d '[
   {"name": "assinatura inválida", "match": {"signature": "invalid"}, "response": {"status": 401}},
   {"name": "assinatura ausente",  "match": {"signature": "absent"},  "response": {"status": 401}}]' >/dev/null
@@ -263,8 +264,8 @@ legítimas: os outros 10 ataques passam com assinatura válida. Na mesma semente
 | Claude Sonnet 5.5 pelo MCP, três execuções | 14 · 14 · 14 de 14 | 0 · 0 · 0 de 18 | 12 · 11 · 12 de 12 | 0 de 6 nas três |
 | Qwen3.6-35B local pelo MCP, três execuções | 13 · 14 · 13 de 14 | 1 · 1 · 0 de 18 | 0 · 5 · 1 de 12 | 0 de 6 nas três |
 
-Os dois modelos veem os ataques; o local perde a contenção na forma da regra (`status` fora de `response`, `regex`
-que não casa o valor inteiro).
+Os dois modelos veem os ataques; o local perde a contenção na regra que escreve: forma errada (`status` fora de
+`response`, `regex` que não casa o valor inteiro), regra de assinatura que faltou e valor copiado da onda 1.
 
 - **Quem faz o quê:** o servidor guarda o gabarito, entrega as ondas e mede; o defensor julga (`legitimate` ou
   `attack`) e contém com regras de resposta, o único atuador medido.
@@ -272,7 +273,7 @@ que não casa o valor inteiro).
   cinco ferramentas MCP `create_defense_lab`, `list_defense_scenarios`, `start_defense_round`,
   `submit_defense_verdicts` e `finish_defense_round`, mais `set_rules` para conter, com o agente cercado ao MCP do
   Anzol, sem shell e sem arquivo.
-- **Limites:** uma semente; a onda 2 repete os cenários da onda 1 com variações, sem ataque novo; três execuções
+- **Limites:** uma semente; a onda 2 repete os cenários da onda 1 com outros valores e contas, sem ataque novo; três execuções
   mostram a faixa, não a média; medido na 0.9.5; os ataques são sintéticos, de uma loja fictícia.
 - **Detalhe:** a primeira rodada passo a passo, os 14 cenários, como ler o relatório e como plugar o seu agente em
   [`docs/laboratorio-defesa.md`](docs/laboratorio-defesa.md); o contrato em
