@@ -1,5 +1,8 @@
 # Privacidade e segurança
 
+[![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/privacy.md)
+[![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](privacidade.md)
+
 ## Privacidade
 
 Quem tem o UUID de uma URL lê tudo dela. Com um **segredo de leitura**, ver e gerir a URL passa a exigir o segredo;

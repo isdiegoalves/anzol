@@ -1,5 +1,8 @@
 # MCP e IA local
 
+[![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/mcp-and-ai.md)
+[![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](mcp-e-ia.md)
+
 ## MCP
 
 Com `ANZOL_MCP_ENABLED=true` (desligado por padrão; [como ligar no compose](operacao.md#ligar-no-compose)), o app é
