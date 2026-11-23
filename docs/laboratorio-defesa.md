@@ -1,5 +1,8 @@
 # Laboratório de defesa
 
+[![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/defense-lab.md)
+[![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](laboratorio-defesa.md)
+
 A assinatura HMAC prova quem mandou o webhook, não que o conteúdo é inofensivo: um remetente com o segredo vazado
 assina o próprio ataque, e um texto num campo livre pode dar ordens ao agente de IA que lê a mensagem. O laboratório
 de defesa põe isso à prova numa URL sua: o servidor entrega 32 requisições sintéticas com gabarito, 18 legítimas e
@@ -20,7 +23,7 @@ relatório e a leitura do que ele diz.
 Precisa de Docker, `curl` e [`jq`](https://jqlang.org). Do `docker run` do app ao relatório, o defensor de regras fixas
 abaixo levou 4,98 s numa máquina com a imagem já baixada.
 
-**0. Um Anzol de pé.** Se você já tem um em <http://localhost:8084> (o [Início rápido](../README.md#início-rápido)),
+**0. Um Anzol de pé.** Se você já tem um em <http://localhost:8084> (o [Início rápido](../README.pt-BR.md#início-rápido)),
 pule para o passo 1; para o caminho pelo MCP, ele precisa de `ANZOL_MCP_ENABLED=true`, que o compose deixa desligado
 ([como ligar](operacao.md#ligar-no-compose)). Senão, a imagem em que os números deste guia foram medidos, com o MCP ligado:
 

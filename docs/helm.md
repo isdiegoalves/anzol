@@ -1,5 +1,8 @@
 # Helm
 
+[![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/helm.md)
+[![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](helm.md)
+
 O chart `anzol` em `helm/` sobe no Kubernetes o mesmo que o `docker-compose.yml`: o app (imagem
 `ghcr.io/isdiegoalves/anzol`, porta 8080, uma réplica) e um Redis 8 como StatefulSet com PVC, `--maxmemory` e
 `noeviction`, gravando o `dump.rdb` em `/data`. O workflow `imagem` (`.github/workflows/imagem.yml`) publica a imagem no

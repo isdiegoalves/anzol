@@ -1,5 +1,8 @@
 # API
 
+[![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/api.md)
+[![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](api.md)
+
 O documento [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0) da API está em `GET /openapi.yaml` e
 `GET /openapi.json` (fonte: `backend/src/main/resources/openapi/anzol.yaml`, escrito à mão, porque as rotas leem o
 corpo direto da requisição, como o app antigo). Serve para importar no Insomnia ou no Postman, gerar cliente e testar

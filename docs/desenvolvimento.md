@@ -1,5 +1,8 @@
 # Desenvolvimento
 
+[![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/development.md)
+[![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](desenvolvimento.md)
+
 ## Como testar
 
 ```bash

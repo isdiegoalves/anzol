@@ -1,5 +1,8 @@
 # CLI
 
+[![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/cli.md)
+[![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](cli.md)
+
 Entrega os webhooks que chegam na URL direto no app que você está desenvolvendo, como o
 `stripe listen`: sem aba aberta e sem CORS.
 Também baixa e sobe as [regras de resposta](api.md#regras-de-resposta) da URL como arquivo JSON.
@@ -401,7 +404,7 @@ url: deleted
 | Uso inválido, `--rules` ou `match` recusados pelo servidor (422), `Token not found` ou servidor fora do ar | 2 |
 | O gatilho não subiu ou saiu com código diferente de 0 (a espera não começa) | 3 |
 
-No GitHub Actions, o servidor sobe como serviço com a [imagem publicada](../README.md#início-rápido), e o CLI é construído do
+No GitHub Actions, o servidor sobe como serviço com a [imagem publicada](../README.pt-BR.md#início-rápido), e o CLI é construído do
 fonte da mesma versão:
 
 ```yaml
