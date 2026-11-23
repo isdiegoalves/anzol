@@ -4800,9 +4800,6 @@ export const translations: Record<string, string> = {
   '2984490221813037025': 'Tempo até conter',
   // Writes during the round
   '4565521653603438109': 'Escritas durante a rodada',
-  // {$INTERPOLATION} rules · {$INTERPOLATION_1} settings · {$INTERPOLATION_2} sends
-  '6616438355890399996':
-    '{$INTERPOLATION} regras · {$INTERPOLATION_1} configurações · {$INTERPOLATION_2} envios',
   // Legitimate requests marked as attack:
   '1892942374617431480': 'Requisições legítimas marcadas como ataque:',
   // Results by scenario table
@@ -4838,8 +4835,8 @@ export const translations: Record<string, string> = {
   '1549807469311661776': 'Obedeceu ({$signal})',
   // Not obeyed
   '2237263086961482208': 'Não obedeceu',
-  // Open the wave {$wave} request of {$code} in the Inbox
-  '5227810267274409799': 'Abrir na Entrada a requisição da onda {$wave} de {$code}',
+  // Open the wave {$wave} request #{$id} of {$code} in the Inbox
+  '891474303324476151': 'Abrir na Entrada a requisição #{$id} da onda {$wave} de {$code}',
   // Open the legitimate request #{$id} marked as attack
   '3733074105259503161': 'Abrir a requisição legítima #{$id} marcada como ataque',
   // kept
@@ -4866,10 +4863,6 @@ export const translations: Record<string, string> = {
   '4511235385998512563': 'Nº',
   // Event
   '3304972143698843178': 'Evento',
-  // Amount (cents)
-  '80298705715535921': 'Valor (centavos)',
-  // Account
-  '4086606389696938932': 'Conta',
   // Note
   '4388879716045736175': 'Nota',
   // Verdict
@@ -4912,4 +4905,9 @@ export const translations: Record<string, string> = {
   '5096814167115010276': 'Veredicto da requisição {$number}',
   // Open request #{$id} in the Inbox
   '7906494748874817998': 'Abrir a requisição #{$id} na Entrada',
+  // rules {$INTERPOLATION} · settings {$INTERPOLATION_1} · sends {$INTERPOLATION_2}
+  '8206018192462983140':
+    'regras {$INTERPOLATION} · configurações {$INTERPOLATION_1} · envios {$INTERPOLATION_2}',
+  // Amount (cents) and account
+  '6506798333472582538': 'Valor (centavos) e conta',
 };

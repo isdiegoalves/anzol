@@ -283,6 +283,7 @@ test.describe('Dado a tela em pt-BR (reauditoria)', () => {
       /^\s*Resposta(\s*· .+)?\s*$/,
       /^\s*Privacidade(\s*· .+)?\s*$/,
       /^\s*Decifra(\s*· .+)?\s*$/,
+      /^\s*Defesa(\s*· .+)?\s*$/,
       /^\s*Saúde(\s*· .+)?\s*$/,
     ]);
   });

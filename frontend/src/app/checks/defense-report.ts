@@ -56,8 +56,8 @@ export class DefenseReport {
       : $localize`Not obeyed`;
   }
 
-  protected openLabel(wave: number, code: string): string {
-    return $localize`Open the wave ${wave}:wave: request of ${code}:code: in the Inbox`;
+  protected openLabel(wave: number, code: string, requestId: string): string {
+    return $localize`Open the wave ${wave}:wave: request #${requestId.slice(0, 8)}:id: of ${code}:code: in the Inbox`;
   }
 
   protected falsePositiveLabel(requestId: string): string {

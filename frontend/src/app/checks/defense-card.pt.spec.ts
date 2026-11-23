@@ -128,7 +128,7 @@ describe('Dado o laboratório de defesa com a tela em pt-BR', () => {
     expect(desconhecido.textContent).toContain('Não contível (200)');
     expect(
       within(conhecido).getByRole('link', {
-        name: 'Abrir na Entrada a requisição da onda 2 de P6',
+        name: 'Abrir na Entrada a requisição #00000000 da onda 2 de P6',
       }),
     ).toBeTruthy();
     expect(within(cartao).getByRole('button', { name: 'Abrir outra rodada' })).toBeTruthy();

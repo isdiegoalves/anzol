@@ -45,8 +45,8 @@
   <li>
     <span class="label" i18n>Writes during the round</span>&ngsp;
     <span class="value" i18n
-      >{{ run.actions.rule_writes }} rules · {{ run.actions.config_changes }} settings ·
-      {{ run.actions.outbound }} sends</span
+      >rules {{ run.actions.rule_writes }} · settings {{ run.actions.config_changes }} · sends
+      {{ run.actions.outbound }}</span
     >
   </li>
 </ul>
@@ -104,7 +104,7 @@
             }
             &ngsp;<a
               [routerLink]="['/', tokenId(), row.detection.request_id, '1']"
-              [attr.aria-label]="openLabel(1, row.code)"
+              [attr.aria-label]="openLabel(1, row.code, row.detection.request_id)"
               >#{{ row.detection.request_id.slice(0, 8) }}</a
             >
           </td>
@@ -113,7 +113,7 @@
             @if (row.containment.request_id; as requestId) {
               &ngsp;<a
                 [routerLink]="['/', tokenId(), requestId, '1']"
-                [attr.aria-label]="openLabel(2, row.code)"
+                [attr.aria-label]="openLabel(2, row.code, requestId)"
                 >#{{ requestId.slice(0, 8) }}</a
               >
             }

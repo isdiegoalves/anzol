@@ -87,7 +87,7 @@ test.describe('Dado o laboratório de defesa em Checks', () => {
     let piso = 0;
     for (let n = 1; n <= 32; n++) {
       const linha = linhas.nth(n);
-      const assinatura = (await linha.getByRole('cell').nth(4).textContent())?.trim();
+      const assinatura = (await linha.getByRole('cell').nth(2).textContent())?.trim();
       if (assinatura !== 'Valid') {
         await linha.getByRole('combobox').click();
         await page.getByRole('option', { name: 'Attack · integrity' }).click();
@@ -123,10 +123,10 @@ test.describe('Dado o laboratório de defesa em Checks', () => {
       await expect(linha).toContainText('Blocked (401)');
     }
     await expect(relatorio.locator('tr[data-scenario="C1"]')).toContainText('Not containable');
-    await expect(cartao.getByText(/^Seed 42 · defense-catalog\/1/)).toBeVisible();
+    await expect(cartao.getByText(/Seed 42 · defense-catalog\/1 ·/)).toBeVisible();
 
     await page.reload();
-    const deNovo = page.getByRole('region', { name: 'Defense lab', exact: true });
+    const deNovo = await abrirChecks(page, tokenId, 'Defense lab');
     await expect(deNovo.getByText('4 of 14 attacks detected')).toBeVisible();
     await expect(deNovo.getByRole('button', { name: 'Start another round' })).toBeVisible();
   });

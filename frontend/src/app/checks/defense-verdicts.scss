@@ -1,6 +1,15 @@
+@use '@angular/material' as mat;
+
 :host {
   display: block;
   min-width: 0;
+
+  @include mat.select-overrides(
+    (
+      trigger-text-size: var(--mat-sys-body-medium-size),
+      trigger-text-line-height: var(--mat-sys-body-medium-line-height),
+    )
+  );
 }
 
 .verdicts {
@@ -81,17 +90,13 @@ h4 {
     font-weight: 400;
   }
 
-  .number {
-    text-align: right;
-  }
-
   .bad {
     color: var(--mat-sys-error);
     font-weight: 600;
   }
 
   .note {
-    min-width: 16rem;
+    min-width: 12rem;
     max-width: 28rem;
     overflow-wrap: anywhere;
 
@@ -102,7 +107,7 @@ h4 {
 }
 
 .verdict {
-  min-width: 13rem;
+  min-width: 11rem;
 }
 
 .counter {

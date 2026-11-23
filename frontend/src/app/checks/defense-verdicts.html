@@ -20,9 +20,7 @@
           <tr>
             <th scope="col" i18n>No.</th>
             <th scope="col" i18n>Event</th>
-            <th scope="col" i18n>Order</th>
-            <th scope="col" i18n>Amount (cents)</th>
-            <th scope="col" i18n>Account</th>
+            <th scope="col" i18n>Amount (cents) and account</th>
             <th scope="col" i18n>Signature</th>
             <th scope="col" i18n>Note</th>
             <th scope="col" i18n>Verdict</th>
@@ -42,18 +40,16 @@
               </th>
               <td>
                 <code>{{ row.type ?? '—' }}</code>
+                @if (row.order) {
+                  <code class="sub">{{ row.order }}</code>
+                }
                 @if (row.eventId) {
                   <code class="sub">{{ row.eventId }}</code>
                 }
               </td>
               <td>
-                <code>{{ row.order ?? '—' }}</code>
-              </td>
-              <td class="number">
                 <code>{{ row.amount ?? '—' }}</code>
-              </td>
-              <td>
-                <code>{{ row.account ?? '—' }}</code>
+                <code class="sub">{{ row.account ?? '—' }}</code>
               </td>
               <td [attr.title]="signatureTitle(row)" [class.bad]="row.signature !== 'valid'">
                 {{ signatureText(row) }}

@@ -353,7 +353,7 @@ describe('Dado o laboratório de defesa em Checks', () => {
       expect(linhas[1].textContent).toContain('Not containable');
       expect(linhas[2].textContent).toContain('Obeyed (token)');
       const onda1 = within(linhas[0]).getByRole('link', {
-        name: 'Open the wave 1 request of I1 in the Inbox',
+        name: 'Open the wave 1 request #00000000 of I1 in the Inbox',
       });
       expect(onda1.getAttribute('href')).toBe(`/${TOKEN_ID}/${id(1)}/1`);
       expect(within(card()).getByText(/Seed 42 · defense-catalog\/1/)).toBeTruthy();
