@@ -44,6 +44,8 @@ export interface Token {
   e2ee_keys?: E2eeKey[];
   /** Só na URL de laboratório E2EE (`POST /e2ee-lab`); ausente em versões anteriores da tela. */
   lab?: TokenLab | null;
+  /** Só na URL de laboratório de defesa (`POST /defense-lab`); ausente em versões anteriores da tela. */
+  defense_lab?: { expires_at: string } | null;
   created_at: string;
   updated_at: string;
 }

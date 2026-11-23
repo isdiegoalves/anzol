@@ -1,0 +1,114 @@
+@use '@angular/material' as mat;
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--mat-sys-corner-extra-small);
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font: var(--mat-sys-label-medium);
+}
+
+.expires {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+h4 {
+  margin: 0;
+  font: var(--mat-sys-title-small);
+}
+
+.briefing summary {
+  cursor: pointer;
+  font: var(--mat-sys-label-large);
+
+  @media (pointer: coarse) {
+    padding-block: calc((44px - 1lh) / 2);
+  }
+}
+
+.briefing p {
+  margin-top: 4px;
+}
+
+.progress {
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+}
+
+.error {
+  margin: 0;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-medium);
+}
+
+.round,
+.report,
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.round-id {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+
+  .label {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-medium);
+  }
+
+  code {
+    font: 13px / 1.5 var(--app-code-family);
+    overflow-wrap: anywhere;
+  }
+}
+
+.prompt-text {
+  max-width: 72ch;
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--mat-sys-outline-variant);
+  font: 12px / 1.6 var(--app-code-family);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.prompt > button {
+  align-self: flex-start;
+}
+
+.actions,
+.start {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+}
+
+.start mat-form-field {
+  flex: 1 1 16rem;
+  min-width: 0;
+  max-width: 24rem;
+}
+
+.start button {
+  margin-top: 4px;
+}
+
+.tonal {
+  @include mat.button-overrides(
+    (
+      filled-container-color: var(--mat-sys-secondary-container),
+      filled-label-text-color: var(--mat-sys-on-secondary-container),
+    )
+  );
+}

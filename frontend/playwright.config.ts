@@ -38,6 +38,7 @@ const MOBILE = [
   'apagar-todas',
   'copiar-como',
   'checks',
+  'laboratorio-defesa',
   'insights',
   'regras[^/]*',
   'fidelidade-rules[^/]*',

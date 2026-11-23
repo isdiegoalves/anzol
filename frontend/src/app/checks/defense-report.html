@@ -1,0 +1,129 @@
+@let run = report();
+<p class="summary" [class.all]="allDetected()">
+  <app-icon [name]="allDetected() ? 'ok' : 'bad'" [size]="22" />
+  <strong i18n>{run.detection.attacks, plural,
+    =1 {{{ run.detection.detected }} of 1 attack detected}
+    other {{{ run.detection.detected }} of {{ run.detection.attacks }} attacks detected}
+  }</strong>
+</p>
+<ul class="numbers" aria-label="Round results" i18n-aria-label>
+  <li>
+    <span class="label" i18n>False positives</span>&ngsp;
+    <span class="value" i18n
+      >{{ run.detection.false_positives }} of {{ run.detection.legitimate }} legitimate</span
+    >
+  </li>
+  <li>
+    <span class="label" i18n>Contained</span>&ngsp;
+    <span class="value" i18n
+      >{{ run.containment.blocked }} of {{ run.containment.attacks }} containable attacks blocked in
+      wave 2</span
+    >
+  </li>
+  <li>
+    <span class="label" i18n>Legitimate passed</span>&ngsp;
+    <span class="value" i18n
+      >{{ run.containment.passed }} of {{ run.containment.legitimate }} in wave 2</span
+    >
+  </li>
+  <li>
+    <span class="label" i18n>Coverage</span>&ngsp;
+    <span class="value" i18n>{{ run.coverage.judged }} of {{ run.coverage.requests }} judged</span>
+  </li>
+  <li>
+    <span class="label" i18n>Injection obeyed</span>&ngsp;
+    <span class="value" i18n>{{ run.injection.obeyed }} of {{ run.injection.scenarios }}</span>
+  </li>
+  <li [class.loosened]="run.loosening.loosened">
+    <span class="label" i18n>Signature and schema</span>&ngsp;
+    <span class="value">{{ settings() }}</span>
+  </li>
+  <li>
+    <span class="label" i18n>Time to contain</span>&ngsp;
+    <span class="value" i18n>{{ run.containment_seconds }} s</span>
+  </li>
+  <li>
+    <span class="label" i18n>Writes during the round</span>&ngsp;
+    <span class="value" i18n
+      >rules {{ run.actions.rule_writes }} · settings {{ run.actions.config_changes }} · sends
+      {{ run.actions.outbound }}</span
+    >
+  </li>
+</ul>
+@if (run.false_positives.length > 0) {
+  <p class="hint">
+    <span i18n>Legitimate requests marked as attack:</span>
+    @for (requestId of run.false_positives; track requestId) {
+      &ngsp;<a
+        [routerLink]="['/', tokenId(), requestId, '1']"
+        [attr.aria-label]="falsePositiveLabel(requestId)"
+        >#{{ requestId.slice(0, 8) }}</a
+      >
+    }
+  </p>
+}
+<div
+  class="table-scroll"
+  tabindex="0"
+  role="region"
+  aria-label="Results by scenario table"
+  i18n-aria-label
+>
+  <table class="table" aria-label="Results by scenario" i18n-aria-label>
+    <thead>
+      <tr>
+        <th scope="col" i18n>Code</th>
+        <th scope="col" i18n>Scenario</th>
+        <th scope="col" i18n>Caught by</th>
+        <th scope="col" i18n>Wave 1</th>
+        <th scope="col" i18n>Wave 2</th>
+        <th scope="col" i18n>Injection</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of run.scenarios; track row.code) {
+        <tr [class.missed]="!row.detection.detected" [attr.data-scenario]="row.code">
+          <th scope="row">
+            <code>{{ row.code }}</code>
+          </th>
+          @let scenario = title(row.title);
+          <td class="description" [attr.title]="scenario.original">
+            {{ scenario.text }}
+            <span class="family">{{ family(row.family) }}</span>
+          </td>
+          <td>{{ layer(row.layer) }}</td>
+          <td>
+            @if (row.detection.detected) {
+              <span class="verdict ok"
+                ><app-icon name="ok" [size]="16" /><span i18n>Detected</span></span
+              >
+            } @else {
+              <span class="verdict bad"
+                ><app-icon name="bad" [size]="16" /><span i18n>Missed</span></span
+              >
+            }
+            &ngsp;<a
+              [routerLink]="['/', tokenId(), row.detection.request_id, '1']"
+              [attr.aria-label]="openLabel(1, row.code, row.detection.request_id)"
+              >#{{ row.detection.request_id.slice(0, 8) }}</a
+            >
+          </td>
+          <td>
+            {{ wave2(row) }}
+            @if (row.containment.request_id; as requestId) {
+              &ngsp;<a
+                [routerLink]="['/', tokenId(), requestId, '1']"
+                [attr.aria-label]="openLabel(2, row.code, requestId)"
+                >#{{ requestId.slice(0, 8) }}</a
+              >
+            }
+          </td>
+          <td [class.obeyed]="row.injection?.obeyed === true">{{ injection(row) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+<p class="hint" i18n>
+  Seed {{ run.seed }} · {{ run.catalog_version }} · the same seed delivers the same waves.
+</p>

@@ -1,0 +1,198 @@
+<!-- O cabeçalho recolhível do celular, projetado pela página. -->
+<ng-content />
+<div class="card-body">
+  <header class="card-head">
+    <span class="card-icon primary" aria-hidden="true"><app-icon name="bolt" [size]="22" /></span>
+    <h2 id="defense-title" i18n>Defense lab</h2>
+    @if (mark()) {
+      <span class="badge"
+        ><app-icon name="bolt" [size]="15" /><span i18n>Defense lab URL</span></span
+      >
+      <span class="expires">{{ expires() }}</span>
+    }
+  </header>
+
+  @if (mark()) {
+    @let current = round();
+    <p class="hint" i18n>
+      A round delivers wave 1 to this URL through the real capture: 18 legitimate requests and 14
+      attacks from three families (integrity, compromised sender, prompt injection), in random
+      order. Judge them here or with your agent, write response rules in Rules, then finish: the
+      server delivers wave 2 against the rules of that moment and measures detection, false
+      positives and containment.
+    </p>
+    <p class="hint" i18n>
+      This URL holds one of the 20 slots on the server for 30 minutes after it is created and after
+      each round; with every slot taken, starting a round waits for one to free up. Up to 6 rounds
+      per minute. The URL lives 24 hours from creation and is not renewed.
+    </p>
+    @if (briefing(); as text) {
+      <details class="briefing">
+        <summary i18n>Briefing: what normal traffic looks like</summary>
+        <p class="hint">{{ text }}</p>
+      </details>
+    }
+
+    <!-- Região viva fixa: o começo e o fim da rodada são anunciados quando a frase entra nela. -->
+    <p class="progress" role="status">
+      <span appLateContent>{{ progress() }}</span>
+    </p>
+    @if (failure(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+
+    @if (phase() === 'open' && current) {
+      <section class="round" aria-labelledby="defense-round-title">
+        <h3 id="defense-round-title" i18n>Open round</h3>
+        <p class="round-id">
+          <span class="label" i18n>Round id</span>
+          <code>{{ current.round_id }}</code>
+          <button
+            mat-button
+            type="button"
+            aria-label="Copy round id"
+            i18n-aria-label
+            [cdkCopyToClipboard]="current.round_id"
+            (cdkCopyToClipboardCopied)="copied(copyRoundDone, $event)"
+          >
+            <app-icon name="copy" [size]="18" /><ng-container i18n>Copy</ng-container>
+          </button>
+        </p>
+
+        @if (current.requests.length > 0) {
+          <app-defense-verdicts
+            [tokenId]="tokenId()"
+            [round]="current"
+            (changed)="keep($event)"
+            (said)="progress.set($event)"
+          />
+        } @else {
+          <p class="hint" i18n>
+            This round was started elsewhere, so this screen does not know its wave 1: judge it with
+            the agent or through the API. You can still finish it here.
+          </p>
+        }
+
+        <section class="prompt" aria-labelledby="defense-prompt-title">
+          <h4 id="defense-prompt-title" i18n>Prompt for your agent</h4>
+          <p class="hint" i18n>
+            For an agent with the Anzol MCP and this URL's read secret. If you also judge here, the
+            last verdict sent for a request is the one that counts.
+          </p>
+          <pre class="prompt-text">{{ prompt() }}</pre>
+          <button
+            mat-button
+            type="button"
+            [cdkCopyToClipboard]="prompt()"
+            (cdkCopyToClipboardCopied)="copied(copyPromptDone, $event)"
+          >
+            <app-icon name="copy" [size]="18" /><ng-container i18n>Copy prompt</ng-container>
+          </button>
+        </section>
+
+        <p class="hint" i18n>
+          Finishing delivers wave 2 against the rules of that moment and measures. The round does
+          not reopen.
+        </p>
+        <div class="actions">
+          <button
+            mat-flat-button
+            type="button"
+            disabledInteractive
+            [disabled]="busy()"
+            (click)="finishRound()"
+          >
+            <app-icon name="check" [size]="18" /><ng-container i18n>Finish the round</ng-container>
+          </button>
+          <button
+            mat-button
+            type="button"
+            disabledInteractive
+            [disabled]="busy()"
+            (click)="check()"
+          >
+            <app-icon name="refresh" [size]="18" /><ng-container i18n>Check the round</ng-container>
+          </button>
+        </div>
+      </section>
+    }
+
+    @if (phase() === 'closed') {
+      @if (report(); as run) {
+        <section class="report" aria-labelledby="defense-report-title">
+          <h3 id="defense-report-title" i18n>Round report</h3>
+          <app-defense-report [report]="run" [tokenId]="tokenId()" />
+        </section>
+      }
+    }
+
+    @if (phase() === 'idle' || phase() === 'closed') {
+      <div class="start">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="seed">
+          <mat-label i18n>Seed (optional)</mat-label>
+          <input matInput [formControl]="seed" inputmode="numeric" autocomplete="off" />
+          <mat-hint i18n>Empty draws one; the same seed delivers the same waves.</mat-hint>
+        </mat-form-field>
+        <button
+          mat-flat-button
+          type="button"
+          disabledInteractive
+          [disabled]="busy()"
+          (click)="startRound()"
+        >
+          <app-icon name="replay" [size]="18" />
+          @if (phase() === 'closed') {
+            <ng-container i18n>Start another round</ng-container>
+          } @else {
+            <ng-container i18n>Start a round</ng-container>
+          }
+        </button>
+      </div>
+    }
+
+    @if (phase() === 'idle') {
+      <div class="start">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="pasted">
+          <mat-label i18n>Round id</mat-label>
+          <input matInput [formControl]="pastedId" autocomplete="off" spellcheck="false" />
+          <mat-hint i18n>For a round an agent started: the API and the MCP give its id.</mat-hint>
+        </mat-form-field>
+        <button
+          mat-button
+          type="button"
+          disabledInteractive
+          [disabled]="busy()"
+          (click)="openPasted()"
+          i18n
+        >
+          Open the round
+        </button>
+      </div>
+    }
+  } @else {
+    <p class="hint" i18n>
+      A test range for webhook defense: a new URL that receives synthetic traffic with an answer
+      key, legitimate requests and attacks mixed. You or your agent judge each request and write
+      response rules; the server measures detection, false positives, containment and whether the
+      defender obeyed an injected instruction. The attacks only reach that URL, which expires in 24
+      hours.
+    </p>
+    <div class="actions">
+      <button
+        mat-flat-button
+        class="tonal"
+        type="button"
+        disabledInteractive
+        [disabled]="creating()"
+        (click)="createLab()"
+      >
+        <app-icon name="plus" [size]="18" /><ng-container i18n
+          >Create a defense lab URL</ng-container
+        >
+      </button>
+    </div>
+    @if (refusal(); as refused) {
+      <p class="error" role="alert">{{ refused }}</p>
+    }
+  }
+</div>

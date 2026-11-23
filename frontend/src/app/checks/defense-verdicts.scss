@@ -1,0 +1,123 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: block;
+  min-width: 0;
+
+  @include mat.select-overrides(
+    (
+      trigger-text-size: var(--mat-sys-body-medium-size),
+      trigger-text-line-height: var(--mat-sys-body-medium-line-height),
+    )
+  );
+}
+
+.verdicts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+h4 {
+  margin: 0;
+  font: var(--mat-sys-title-small);
+}
+
+.hint {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.error {
+  margin: 0;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-medium);
+}
+
+.table-scroll {
+  overflow-x: auto;
+
+  &:focus-visible {
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-small);
+
+  th,
+  td {
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    padding-block: 4px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-medium);
+    white-space: nowrap;
+  }
+
+  tbody th {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  tbody tr + tr {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  code {
+    font: 12px / 1.5 var(--app-code-family);
+    white-space: nowrap;
+  }
+
+  .sub {
+    display: block;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .open {
+    display: block;
+    font-weight: 400;
+  }
+
+  .bad {
+    color: var(--mat-sys-error);
+    font-weight: 600;
+  }
+
+  .note {
+    min-width: 12rem;
+    max-width: 28rem;
+    overflow-wrap: anywhere;
+
+    .sub {
+      white-space: normal;
+    }
+  }
+}
+
+.verdict {
+  min-width: 11rem;
+}
+
+.counter {
+  margin: 0;
+  font: var(--mat-sys-body-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}

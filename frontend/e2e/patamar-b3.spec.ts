@@ -500,6 +500,7 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     'Response',
     'Privacy',
     'E2EE decryption',
+    'Defense lab',
     'Health',
   ];
 
@@ -532,7 +533,15 @@ test.describe('Dado a ordem por assunto de Verificações', () => {
     const nomes = await atalhos.evaluateAll((links) =>
       links.map((l) => (l.textContent ?? '').trim().split(/[\s·,]/)[0]),
     );
-    expect(nomes).toEqual(['Signature', 'Schema', 'Response', 'Privacy', 'Decryption', 'Health']);
+    expect(nomes).toEqual([
+      'Signature',
+      'Schema',
+      'Response',
+      'Privacy',
+      'Decryption',
+      'Defense',
+      'Health',
+    ]);
   });
 
   test('deve dizer o estado de cada seção no índice e marcar a que tem alteração', async ({
