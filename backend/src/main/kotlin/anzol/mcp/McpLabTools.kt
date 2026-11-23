@@ -86,13 +86,8 @@ class McpLabTools {
                 val codes = (args["scenarios"] as? List<*>).orEmpty().map { it.toString() }
                 when (val run = runner.run(urls.open(id, args.readSecret()), codes)) {
                     is LabRun.Done -> Parsed.Valid(run.report)
-
                     is LabRun.Invalid -> Parsed.Invalid(run.errors)
-
-                    is LabRun.Limited -> throw ResponseStatusException(
-                        HttpStatus.TOO_MANY_REQUESTS,
-                        "Too many lab runs for this URL; try again later",
-                    )
+                    is LabRun.Limited -> throw ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, run.message)
                 }
             },
         )

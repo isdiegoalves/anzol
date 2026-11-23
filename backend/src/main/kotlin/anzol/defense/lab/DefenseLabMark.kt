@@ -17,6 +17,8 @@ val DEFENSE_LAB_LIFETIME: Duration = Duration.ofHours(24)
 /** URLs de laboratório de defesa ativas no servidor, ao mesmo tempo. */
 const val MAX_ACTIVE_DEFENSE_LABS = 20
 
+const val DEFENSE_LABS_FULL = "There are already $MAX_ACTIVE_DEFENSE_LABS active defense lab URLs; delete one or wait."
+
 /**
  * A marca de uma URL de laboratório de defesa: o fim da vida dela e o estado de criação ([signature], com o segredo, e
  * [schema]). As ondas são assinadas com [signature], a do provedor, mesmo que a URL troque a dela; a diferença entre

@@ -17,6 +17,7 @@ import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpResponse
 
 private const val DAY_SECONDS = 86_400L
+private const val SLOT_MILLIS = 1_800_000L
 
 @ApiTest
 @DisplayName("URL de laboratório E2EE")
@@ -121,6 +122,18 @@ class LabApiTest(
 
         assertThat(response.statusCode()).isEqualTo(422)
         assertThat(errors.propertyNames().toList()).contains("path", "hmac_header", "trusted_signers.0")
+    }
+
+    @Test
+    @DisplayName("Dado uma URL de laboratório recém-criada, quando olha a vaga, então ela vence em 30 min, e não nas 24 h da URL")
+    fun create_vaga_deveVencerEmTrintaMinutos() {
+        val lab = created()
+        val id = lab["token"]["uuid"].asString()
+
+        val held = checkNotNull(redis.opsForZSet().score("anzol:labs", id)).toLong() - System.currentTimeMillis()
+
+        assertThat(held).isBetween(SLOT_MILLIS - 60_000, SLOT_MILLIS)
+        delete(lab)
     }
 
     @Test

@@ -63,7 +63,7 @@ class LabController(
                 ResponseEntity
                     .status(HttpStatus.TOO_MANY_REQUESTS)
                     .header(HttpHeaders.RETRY_AFTER, run.retryAfterSeconds.toString())
-                    .body(LabRunsError("Too many lab runs for this URL; try again later"))
+                    .body(LabRunsError(run.message))
             }
         }
     }

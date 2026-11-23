@@ -6,6 +6,7 @@ import anzol.capture.RequestStore
 import anzol.countInWindow
 import anzol.e2ee.DecryptionState
 import anzol.e2ee.E2eePolicy
+import anzol.holdLabSlot
 import anzol.rules.sameJson
 import anzol.token.Token
 import org.springframework.core.env.Environment
@@ -23,6 +24,7 @@ import java.util.UUID
 
 /** Rodadas de cenários por URL de laboratório no minuto. */
 private const val MAX_RUNS_PER_MINUTE = 6
+private const val TOO_MANY_RUNS = "Too many lab runs for this URL; try again later"
 private val SEND_TIMEOUT: Duration = Duration.ofSeconds(10)
 
 /** O que a captura deu num cenário; [dataMatches] só nos que abrem, e diz se o `data` aberto é o enviado. */
@@ -65,6 +67,7 @@ sealed interface LabRun {
 
     data class Limited(
         val retryAfterSeconds: Long,
+        val message: String,
     ) : LabRun
 }
 
@@ -97,8 +100,9 @@ class LabRunner(
         val chosen = codes.map { it to LabScenario.of(it) }
         val unknown = chosen.withIndex().filter { it.value.second == null }
         val policy = token.e2ee
+        val lab = token.lab
         return when {
-            token.lab == null -> {
+            lab == null -> {
                 LabRun.Invalid(NOT_A_LAB)
             }
 
@@ -116,7 +120,9 @@ class LabRunner(
             }
 
             else -> {
-                limited(token) ?: LabRun.Done(report(token, chosen.mapNotNull { it.second }.ifEmpty { LabScenario.entries }))
+                limited(token)
+                    ?: full(token, lab)
+                    ?: LabRun.Done(report(token, chosen.mapNotNull { it.second }.ifEmpty { LabScenario.entries }))
             }
         }
     }
@@ -127,7 +133,18 @@ class LabRunner(
                 RedisKeys.labRuns(token.uuid),
                 Duration.ofMinutes(1),
                 MAX_RUNS_PER_MINUTE,
-            )?.let { LabRun.Limited(it.retryAfterSeconds) }
+            )?.let { LabRun.Limited(it.retryAfterSeconds, TOO_MANY_RUNS) }
+
+    /** A rodada renova a vaga da URL, ou a retoma se venceu; sem vaga livre no servidor, 429. */
+    private fun full(
+        token: Token,
+        lab: LabMark,
+    ): LabRun.Limited? {
+        val now = clock.instant()
+        return redis
+            .holdLabSlot(RedisKeys.LABS, token.uuid, now, lab.remaining(now), MAX_ACTIVE_LABS)
+            ?.let { LabRun.Limited(it.retryAfterSeconds, LABS_FULL) }
+    }
 
     private fun report(
         token: Token,

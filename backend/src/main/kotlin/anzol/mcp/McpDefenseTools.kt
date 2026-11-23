@@ -136,15 +136,8 @@ private fun ToolArguments.roundId(): String? = (this["round_id"] as? String)?.ta
 private fun <T : Any> RoundOutcome<T>.answer(): Parsed<T> =
     when (this) {
         is RoundOutcome.Done -> Parsed.Valid(value)
-
         is RoundOutcome.Invalid -> Parsed.Invalid(errors)
-
         RoundOutcome.NotFound -> throw ResponseStatusException(HttpStatus.NOT_FOUND, "Round not found")
-
         is RoundOutcome.Conflict -> throw ResponseStatusException(HttpStatus.CONFLICT, message)
-
-        is RoundOutcome.Limited -> throw ResponseStatusException(
-            HttpStatus.TOO_MANY_REQUESTS,
-            "Too many defense rounds for this URL; try again later",
-        )
+        is RoundOutcome.Limited -> throw ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, message)
     }

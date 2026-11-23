@@ -2,6 +2,7 @@ package anzol.defense.lab
 
 import anzol.RedisKeys
 import anzol.TokenId
+import anzol.holdLabSlot
 import anzol.rules.Parsed
 import anzol.rules.bodyMapper
 import anzol.schema.SchemaConfig
@@ -14,21 +15,13 @@ import anzol.token.Token
 import anzol.token.TokenStore
 import anzol.token.TokenView
 import anzol.token.toLegacyDateTime
-import org.springframework.core.io.ClassPathResource
 import org.springframework.data.redis.core.StringRedisTemplate
-import org.springframework.data.redis.core.script.RedisScript
 import org.springframework.stereotype.Component
 import tools.jackson.databind.PropertyNamingStrategies
 import tools.jackson.databind.annotation.JsonNaming
 import tools.jackson.databind.node.ObjectNode
-import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Clock
-import java.time.ZoneOffset
 import java.util.UUID
-
-/** O mesmo script de vaga do laboratório E2EE, num índice próprio. */
-private val SLOT =
-    RedisScript.of(ClassPathResource("redis/e2ee-lab-slot.lua").getContentAsString(UTF_8), Long::class.javaObjectType)
 
 private const val DEFENSE_LAB_STATUS = 200L
 
@@ -86,22 +79,8 @@ class DefenseLabService(
                 readSecret = readSecret,
             )
         val uuid = TokenId(UUID.randomUUID())
-        val slot =
-            redis.execute(
-                SLOT,
-                listOf(RedisKeys.DEFENSE_LABS),
-                now.toEpochMilli().toString(),
-                mark.expiresAt
-                    .toInstant(ZoneOffset.UTC)
-                    .toEpochMilli()
-                    .toString(),
-                uuid.toString(),
-                MAX_ACTIVE_DEFENSE_LABS.toString(),
-            )
-        if (slot != 1L) {
-            return Parsed.Invalid(
-                mapOf("defense_lab" to listOf("There are already $MAX_ACTIVE_DEFENSE_LABS active defense lab URLs; delete one or wait.")),
-            )
+        if (redis.holdLabSlot(RedisKeys.DEFENSE_LABS, uuid, now, mark.remaining(now), MAX_ACTIVE_DEFENSE_LABS) != null) {
+            return Parsed.Invalid(mapOf("defense_lab" to listOf(DEFENSE_LABS_FULL)))
         }
         val token =
             Token(
