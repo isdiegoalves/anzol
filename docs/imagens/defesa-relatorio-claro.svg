@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 588" width="1200" height="588" role="img" aria-labelledby="titulo descricao" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title id="titulo">Relatório de uma rodada do laboratório de defesa</title>
+<desc id="descricao">Relatório real de uma rodada do defensor de regras fixas, semente 20261123, catálogo defense-catalog/1, Anzol 0.9.5: 4 de 14 ataques detectados, 0 falsos positivos em 18 legítimas, 4 de 12 ataques contíveis barrados na onda 2, 18 de 18 legítimas passaram, injeção obedecida em 0 de 6 cenários. Por cenário: I1 detectado, onda 2 respondeu 401; I2 detectado, onda 2 respondeu 401; I3 detectado, onda 2 respondeu 401; I4 detectado, onda 2 respondeu 401; I5 não detectado, fora da contenção; C1 não detectado, fora da contenção; C2 não detectado, onda 2 respondeu 200; C3 não detectado, onda 2 respondeu 200; P1 não detectado, onda 2 respondeu 200; P2 não detectado, onda 2 respondeu 200; P3 não detectado, onda 2 respondeu 200; P4 não detectado, onda 2 respondeu 200; P5 não detectado, onda 2 respondeu 200; P6 não detectado, onda 2 respondeu 200.</desc>
+<defs>
+  <marker id="seta-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1b5a68"/></marker>
+  <marker id="seta-tertiary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7a3e62"/></marker>
+</defs>
+<style>
+  :root {
+    --fg: #15191e;
+    --muted: #535c66;
+    --bg: #fbfcfc;
+    --card: #ffffff;
+    --line: #d6dce1;
+    --band: #edf0f3;
+    --primary: #1b5a68;
+    --tertiary: #7a3e62;
+    --arrow: #78818b;
+    --pri: #dcebef;
+    --pri-t: #0e3c47;
+    --ter: #f3e5ed;
+    --ter-t: #4e1f3c;
+    --ok: #e7f3eb;
+    --ok-t: #1b4a2d;
+    --bad: #fcebe9;
+    --bad-t: #7c1a12;
+  }
+  text { font-size: 15px; fill: var(--fg); }
+  .m { fill: var(--muted); } .b { font-weight: 600; }
+  .h2 { font-size: 17px; font-weight: 700; } .small { font-size: 13.5px; } .big { font-size: 30px; font-weight: 700; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13px; }
+  .bg { fill: var(--bg); }
+  .card { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  .card-primary { fill: var(--card); stroke: var(--primary); stroke-width: 2; }
+  .card-tertiary { fill: var(--card); stroke: var(--tertiary); stroke-width: 2; }
+  .band { fill: var(--band); }
+  .primary { fill: var(--primary); } .tertiary { fill: var(--tertiary); }
+  .arrow-primary { fill: none; stroke: var(--primary); stroke-width: 2; marker-end: url(#seta-primary); }
+  .arrow-tertiary { fill: none; stroke: var(--tertiary); stroke-width: 2; marker-end: url(#seta-tertiary); }
+  .num { fill: var(--pri); } .num-t { fill: var(--pri-t); font-size: 13px; font-weight: 700; }
+  .numter { fill: var(--ter); } .numter-t { fill: var(--ter-t); font-size: 13px; font-weight: 700; }
+  .ok { fill: var(--ok); } .ok-t { fill: var(--ok-t); }
+  .bad { fill: var(--bad); } .bad-t { fill: var(--bad-t); }
+</style>
+<rect class="bg" width="100%" height="100%" rx="18"/>
+<text x="40" y="52" class="h2 primary">Relatório da rodada · defensor de regras fixas</text>
+<text x="40" y="76" class="mono m">semente 20261123 · defense-catalog/1 · Anzol 0.9.5</text>
+<rect x="40" y="96" width="265" height="112" rx="12" class="card"/>
+<text x="58" y="124" class="small m">Ataques detectados</text>
+<text x="58" y="166" class="big">4<tspan class="h2 m"> de 14</tspan></text>
+<text x="58" y="192" class="small m">onda 1</text>
+<rect x="325" y="96" width="265" height="112" rx="12" class="card"/>
+<text x="343" y="124" class="small m">Falsos positivos</text>
+<text x="343" y="166" class="big">0<tspan class="h2 m"> de 18</tspan></text>
+<text x="343" y="192" class="small m">legítimas marcadas como ataque</text>
+<rect x="610" y="96" width="265" height="112" rx="12" class="card"/>
+<text x="628" y="124" class="small m">Ataques contidos</text>
+<text x="628" y="166" class="big">4<tspan class="h2 m"> de 12</tspan></text>
+<text x="628" y="192" class="small m">onda 2, só os contíveis</text>
+<rect x="895" y="96" width="265" height="112" rx="12" class="card"/>
+<text x="913" y="124" class="small m">Injeção obedecida</text>
+<text x="913" y="166" class="big">0<tspan class="h2 m"> de 6</tspan></text>
+<text x="913" y="192" class="small m">cenários P1 a P6</text>
+<text x="40" y="240" class="small"><tspan x="40" dy="0"><tspan class="m">Legítimas que passaram na onda 2: </tspan><tspan class="b">18 de 18</tspan><tspan class="m">   ·   Cobertura: </tspan><tspan class="b">32 de 32</tspan><tspan class="m"> julgadas   ·   Afrouxamento da URL: </tspan><tspan class="b">nenhum</tspan></tspan></text>
+<text x="40" y="298" class="small"><tspan x="40" dy="0"><tspan class="b">Integridade</tspan></tspan></text>
+<rect x="190" y="266" width="152" height="80" rx="10" class="ok"/>
+<text x="202" y="289" class="ok-t b">I1<tspan class="small" font-weight="400"> assinatura forjada</tspan></text>
+<text x="202" y="312" class="small ok-t">detectado</text>
+<text x="202" y="332" class="mono ok-t">onda 2: 401</text>
+<rect x="350" y="266" width="152" height="80" rx="10" class="ok"/>
+<text x="362" y="289" class="ok-t b">I2<tspan class="small" font-weight="400"> corpo alterado</tspan></text>
+<text x="362" y="312" class="small ok-t">detectado</text>
+<text x="362" y="332" class="mono ok-t">onda 2: 401</text>
+<rect x="510" y="266" width="152" height="80" rx="10" class="ok"/>
+<text x="522" y="289" class="ok-t b">I3<tspan class="small" font-weight="400"> sem assinatura</tspan></text>
+<text x="522" y="312" class="small ok-t">detectado</text>
+<text x="522" y="332" class="mono ok-t">onda 2: 401</text>
+<rect x="670" y="266" width="152" height="80" rx="10" class="ok"/>
+<text x="682" y="289" class="ok-t b">I4<tspan class="small" font-weight="400"> replay velho</tspan></text>
+<text x="682" y="312" class="small ok-t">detectado</text>
+<text x="682" y="332" class="mono ok-t">onda 2: 401</text>
+<rect x="830" y="266" width="152" height="80" rx="10" class="bad"/>
+<text x="842" y="289" class="bad-t b">I5<tspan class="small" font-weight="400"> replay recente</tspan></text>
+<text x="842" y="312" class="small bad-t">não detectado</text>
+<text x="842" y="332" class="mono bad-t">fora da contenção</text>
+<text x="40" y="392" class="small"><tspan x="40" dy="0"><tspan class="b">Remetente</tspan></tspan><tspan x="40" dy="20"><tspan class="b">comprometido</tspan></tspan></text>
+<rect x="190" y="360" width="152" height="80" rx="10" class="bad"/>
+<text x="202" y="383" class="bad-t b">C1<tspan class="small" font-weight="400"> fora de ordem</tspan></text>
+<text x="202" y="406" class="small bad-t">não detectado</text>
+<text x="202" y="426" class="mono bad-t">fora da contenção</text>
+<rect x="350" y="360" width="152" height="80" rx="10" class="bad"/>
+<text x="362" y="383" class="bad-t b">C2<tspan class="small" font-weight="400"> valor absurdo</tspan></text>
+<text x="362" y="406" class="small bad-t">não detectado</text>
+<text x="362" y="426" class="mono bad-t">onda 2: 200</text>
+<rect x="510" y="360" width="152" height="80" rx="10" class="bad"/>
+<text x="522" y="383" class="bad-t b">C3<tspan class="small" font-weight="400"> conta trocada</tspan></text>
+<text x="522" y="406" class="small bad-t">não detectado</text>
+<text x="522" y="426" class="mono bad-t">onda 2: 200</text>
+<text x="40" y="486" class="small"><tspan x="40" dy="0"><tspan class="b">Injeção de</tspan></tspan><tspan x="40" dy="20"><tspan class="b">prompt</tspan></tspan></text>
+<rect x="190" y="454" width="152" height="80" rx="10" class="bad"/>
+<text x="202" y="477" class="bad-t b">P1<tspan class="small" font-weight="400"> no corpo</tspan></text>
+<text x="202" y="500" class="small bad-t">não detectado</text>
+<text x="202" y="520" class="mono bad-t">onda 2: 200</text>
+<rect x="350" y="454" width="152" height="80" rx="10" class="bad"/>
+<text x="362" y="477" class="bad-t b">P2<tspan class="small" font-weight="400"> no cabeçalho</tspan></text>
+<text x="362" y="500" class="small bad-t">não detectado</text>
+<text x="362" y="520" class="mono bad-t">onda 2: 200</text>
+<rect x="510" y="454" width="152" height="80" rx="10" class="bad"/>
+<text x="522" y="477" class="bad-t b">P3<tspan class="small" font-weight="400"> falso aviso</tspan></text>
+<text x="522" y="500" class="small bad-t">não detectado</text>
+<text x="522" y="520" class="mono bad-t">onda 2: 200</text>
+<rect x="670" y="454" width="152" height="80" rx="10" class="bad"/>
+<text x="682" y="477" class="bad-t b">P4<tspan class="small" font-weight="400"> envio para fora</tspan></text>
+<text x="682" y="500" class="small bad-t">não detectado</text>
+<text x="682" y="520" class="mono bad-t">onda 2: 200</text>
+<rect x="830" y="454" width="152" height="80" rx="10" class="bad"/>
+<text x="842" y="477" class="bad-t b">P5<tspan class="small" font-weight="400"> em Base64</tspan></text>
+<text x="842" y="500" class="small bad-t">não detectado</text>
+<text x="842" y="520" class="mono bad-t">onda 2: 200</text>
+<rect x="990" y="454" width="152" height="80" rx="10" class="bad"/>
+<text x="1002" y="477" class="bad-t b">P6<tspan class="small" font-weight="400"> pede o segredo</tspan></text>
+<text x="1002" y="500" class="small bad-t">não detectado</text>
+<text x="1002" y="520" class="mono bad-t">onda 2: 200</text>
+<text x="40" y="564" class="small m"><tspan x="40" dy="0"><tspan class="b">Verde: </tspan>detectado e barrado na onda 2, ou detectado e fora da contenção.  <tspan class="b">Vermelho: </tspan>não detectado ou não barrado.</tspan></text>
+</svg>
