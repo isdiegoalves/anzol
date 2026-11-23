@@ -15,6 +15,7 @@ import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpResponse
 
 private const val DAY_SECONDS = 86_400L
+private const val SLOT_MILLIS = 1_800_000L
 
 @ApiTest
 @DisplayName("URL de laboratório de defesa")
@@ -117,6 +118,35 @@ class DefenseLabApiTest(
 
         assertThat(stored).doesNotContain("defense_lab")
         assertThat(read["uuid"].asString()).isEqualTo(id)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL de laboratório de defesa recém-criada, quando olha a vaga, então ela vence em 30 min, e não nas 24 h da URL",
+    )
+    fun create_vaga_deveVencerEmTrintaMinutos() {
+        val lab = api.json(create())
+
+        val held = checkNotNull(redis.opsForZSet().score("anzol:defense-labs", id(lab))).toLong() - System.currentTimeMillis()
+
+        assertThat(held).isBetween(SLOT_MILLIS - 60_000, SLOT_MILLIS)
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName("Dado 20 URLs de laboratório de defesa ativas, quando cria a 21ª, então 422 em defense_lab; apagar uma libera a vaga")
+    fun create_acimaDoTeto_deveRecusar() {
+        redis.delete("anzol:defense-labs")
+        val labs = (1..MAX_ACTIVE_DEFENSE_LABS).map { api.json(create()) }
+
+        val refused = create()
+        delete(labs.first())
+        val again = api.json(create())
+
+        assertThat(refused.statusCode()).isEqualTo(422)
+        assertThat(api.json(refused).has("defense_lab")).isTrue()
+        assertThat(again["token"]["defense_lab"].isObject).isTrue()
+        (labs.drop(1) + listOf(again)).forEach(::delete)
     }
 
     @Test

@@ -267,13 +267,16 @@ cabeçalho `hmac_header` (padrão `X-Signature`) e as regras do laboratório: as
 `unknown_kid` → 500, outra falha da decifra → 400, o resto 202. O corpo é opcional:
 `{hmac_header?, path?, bindings?, audience?, max_age_seconds?, trusted_signers?}`, com caminhos simples (`$.a.b`) e
 as JWKs públicas de outros remetentes antes da de teste. A URL tem a marca `lab` (`{signer_kid, expires_at}` no
-token), que nenhuma rota troca; vive 24 h sem renovar com o uso, e o servidor aceita até 20 ativas (422 em `lab`).
+token), que nenhuma rota troca; vive 24 h sem renovar com o uso. O servidor aceita até 20 ativas (422 em `lab`): a
+URL conta como ativa por 30 min depois de criada e depois de cada rodada. Fora desse prazo ela segue abrindo e só
+deixa de ocupar vaga.
 
 `POST /token/{id}/e2ee-lab/run` (`{"scenarios"?: ["P1", "N4", …]}`; sem a lista, todos) gera cada vetor com as
 chaves e o remetente de teste da URL, entrega pela captura de verdade e compara status, estado e motivo:
 `{total, matched, results: [{code, description, expected, actual: {status, state, reason, kid, data_matches},
-ok, request_id}]}`. Só numa URL `lab` (422 nas demais), até seis rodadas por minuto por URL (429). O relatório não
-traz o texto aberto; `data_matches` diz se o `data` aberto é igual ao enviado. `GET /e2ee-lab/scenarios` lista o
+ok, request_id}]}`. Só numa URL `lab` (422 nas demais), até seis rodadas por minuto por URL (429). A rodada renova a
+vaga da URL por 30 min, ou a retoma; sem vaga livre no servidor, 429 com `Retry-After` até a primeira vencer. O
+relatório não traz o texto aberto; `data_matches` diz se o `data` aberto é igual ao enviado. `GET /e2ee-lab/scenarios` lista o
 catálogo com o esperado da política padrão:
 
 | Código | Cenário | Esperado |
@@ -297,7 +300,8 @@ sintéticos e só chegam à URL de laboratório da própria instância.
 formato da Stripe com tolerância de 300 s, o JSON Schema do evento e nenhuma regra. O segredo do HMAC não sai: o
 defensor não assina nada. A resposta traz também o `briefing`, o contexto que um operador teria (os eventos de uma
 loja fictícia, a ordem normal deles, a faixa de valores e as contas), e o catálogo. A URL vive 24 h, contadas da
-criação, e o servidor aceita até 20 ativas (a 21ª dá 422 em `defense_lab`).
+criação. O servidor aceita até 20 ativas (a 21ª dá 422 em `defense_lab`): a URL conta como ativa por 30 min depois
+de criada e depois de cada rodada aberta. Fora desse prazo ela segue abrindo e só deixa de ocupar vaga.
 
 ### A rodada
 
@@ -382,6 +386,7 @@ aparece em `loosening` e deixa os ataques passarem.
 | Abrir com outra rodada aberta; `verdicts` ou `finish` de rodada fechada; ler o relatório de rodada aberta | 409 |
 | Rodada que não existe | 404 |
 | Mais de 6 rodadas no minuto na URL | 429 com `Retry-After` |
+| Abrir numa URL com a vaga vencida e 20 laboratórios de defesa ativos no servidor | 429 com `Retry-After` até a primeira vaga vencer |
 
 O gabarito, os veredictos e os contadores da rodada ficam em chaves `token:{uuid}:defense:*`, com o prazo da URL, e
 somem com ela. A marca da URL guarda a assinatura e o schema de criação e o segredo de leitura em claro, para o

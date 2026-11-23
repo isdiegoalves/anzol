@@ -5,6 +5,7 @@ import anzol.TokenId
 import anzol.e2ee.E2eeKey
 import anzol.e2ee.E2eePolicy
 import anzol.e2ee.readE2ee
+import anzol.holdLabSlot
 import anzol.rules.HEADER_NAME
 import anzol.rules.Parsed
 import anzol.rules.Rule
@@ -24,19 +25,12 @@ import anzol.token.TokenView
 import anzol.token.toLegacyDateTime
 import com.nimbusds.jose.jwk.Curve
 import com.nimbusds.jose.jwk.gen.ECKeyGenerator
-import org.springframework.core.io.ClassPathResource
 import org.springframework.data.redis.core.StringRedisTemplate
-import org.springframework.data.redis.core.script.RedisScript
 import org.springframework.stereotype.Component
 import tools.jackson.databind.PropertyNamingStrategies
 import tools.jackson.databind.annotation.JsonNaming
-import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Clock
-import java.time.ZoneOffset
 import java.util.UUID
-
-private val SLOT =
-    RedisScript.of(ClassPathResource("redis/e2ee-lab-slot.lua").getContentAsString(UTF_8), Long::class.javaObjectType)
 
 const val LAB_SIGNER_KID = "lab-sig-1"
 const val LAB_STATUS = 202L
@@ -131,22 +125,8 @@ class LabService(
     ): Parsed<LabCreated> {
         val now = clock.instant()
         val uuid = TokenId(UUID.randomUUID())
-        val slot =
-            redis.execute(
-                SLOT,
-                listOf(RedisKeys.LABS),
-                now.toEpochMilli().toString(),
-                mark.expiresAt
-                    .toInstant(ZoneOffset.UTC)
-                    .toEpochMilli()
-                    .toString(),
-                uuid.toString(),
-                MAX_ACTIVE_LABS.toString(),
-            )
-        if (slot !=
-            1L
-        ) {
-            return Parsed.Invalid(mapOf("lab" to listOf("There are already $MAX_ACTIVE_LABS active lab URLs; delete one or wait.")))
+        if (redis.holdLabSlot(RedisKeys.LABS, uuid, now, mark.remaining(now), MAX_ACTIVE_LABS) != null) {
+            return Parsed.Invalid(mapOf("lab" to listOf(LABS_FULL)))
         }
         val readSecret = newShareId()
         val hmacSecret = newShareId()

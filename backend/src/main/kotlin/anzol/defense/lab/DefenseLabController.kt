@@ -112,6 +112,6 @@ private fun <T : Any> HttpServletRequest.respond(
             ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, outcome.retryAfterSeconds.toString())
-                .body(LabRunsError("Too many defense rounds for this URL; try again later"))
+                .body(LabRunsError(outcome.message))
         }
     }

@@ -4,6 +4,7 @@ import anzol.RedisKeys
 import anzol.RequestId
 import anzol.capture.RequestStore
 import anzol.countInWindow
+import anzol.holdLabSlot
 import anzol.token.Token
 import org.springframework.core.env.Environment
 import org.springframework.data.redis.core.StringRedisTemplate
@@ -21,6 +22,7 @@ import kotlin.random.Random
 
 /** Rodadas abertas por URL de laboratório no minuto. */
 private const val MAX_ROUNDS_PER_MINUTE = 6
+private const val TOO_MANY_ROUNDS = "Too many defense rounds for this URL; try again later"
 private val SEND_TIMEOUT: Duration = Duration.ofSeconds(10)
 
 /** A semente cabe num número de JSON sem perder precisão (2^53 - 1). */
@@ -46,6 +48,7 @@ sealed interface RoundOutcome<out T> {
 
     data class Limited(
         val retryAfterSeconds: Long,
+        val message: String,
     ) : RoundOutcome<Nothing>
 }
 
@@ -101,13 +104,26 @@ class DefenseRunner(
     ): RoundOutcome<DefenseRoundStarted> {
         val mark = token.defenseLab ?: return RoundOutcome.Invalid(NOT_A_DEFENSE_LAB)
         val id = UUID.randomUUID().toString()
-        return limited(token) ?: if (rounds.open(token, id)) started(token, mark, id, seed) else RoundOutcome.Conflict(ROUND_OPEN)
+        return limited(token)
+            ?: full(token, mark)
+            ?: if (rounds.open(token, id)) started(token, mark, id, seed) else RoundOutcome.Conflict(ROUND_OPEN)
     }
 
     private fun limited(token: Token): RoundOutcome.Limited? =
         redis
             .countInWindow(RedisKeys.defenseRoundRate(token.uuid), Duration.ofMinutes(1), MAX_ROUNDS_PER_MINUTE)
-            ?.let { RoundOutcome.Limited(it.retryAfterSeconds) }
+            ?.let { RoundOutcome.Limited(it.retryAfterSeconds, TOO_MANY_ROUNDS) }
+
+    /** A rodada renova a vaga da URL, ou a retoma se venceu; sem vaga livre no servidor, 429. */
+    private fun full(
+        token: Token,
+        mark: DefenseLabMark,
+    ): RoundOutcome.Limited? {
+        val now = clock.instant()
+        return redis
+            .holdLabSlot(RedisKeys.DEFENSE_LABS, token.uuid, now, mark.remaining(now), MAX_ACTIVE_DEFENSE_LABS)
+            ?.let { RoundOutcome.Limited(it.retryAfterSeconds, DEFENSE_LABS_FULL) }
+    }
 
     private fun started(
         token: Token,

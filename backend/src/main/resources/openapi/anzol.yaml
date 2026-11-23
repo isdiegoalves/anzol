@@ -1486,7 +1486,7 @@ paths:
       description: >-
         A new URL ready to test decryption: read and HMAC secrets (returned only here), keys `enc-v1` and
         `enc-v2`, the test signer `lab-sig-1`, the lab policy and rules. Lives 24 h; up to 20 active labs on the
-        server (422 in `lab`).
+        server (422 in `lab`). A lab counts as active for 30 min after it is created and after each run.
       security: []
       requestBody:
         required: false
@@ -1537,7 +1537,8 @@ paths:
       summary: Run the lab scenarios
       description: >-
         Builds each scenario with the URL keys, delivers it through the real capture and compares status and
-        decryption with the expected. Only on a lab URL (422 in `lab`); up to 6 runs per minute per URL.
+        decryption with the expected. Only on a lab URL (422 in `lab`); up to 6 runs per minute per URL. A run
+        keeps the lab active for 30 min; a lab that is no longer active needs a free slot among the 20 (429).
       security:
         - {}
         - readSecret: []
@@ -1570,7 +1571,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '429':
           description: >-
-            Too many lab runs on this URL, or (on a protected URL) too many wrong read secrets.
+            Too many lab runs on this URL, 20 other labs active on the server, or (on a protected URL) too many
+            wrong read secrets.
           headers:
             Retry-After:
               $ref: '#/components/headers/RetryAfter'
@@ -1588,7 +1590,8 @@ paths:
       description: >-
         A new URL ready for a defense round: read secret (returned only here), Stripe-style signature with
         timestamp tolerance, the event JSON Schema and no rules. The HMAC secret is never returned. Lives 24 h;
-        up to 20 active defense labs on the server (422 in `defense_lab`). The body has no fields.
+        up to 20 active defense labs on the server (422 in `defense_lab`). A lab counts as active for 30 min
+        after it is created and after each round it opens. The body has no fields.
       security: []
       responses:
         '201':
@@ -1631,7 +1634,8 @@ paths:
       description: >-
         Delivers wave 1 (legitimate traffic and one attack per scenario, shuffled) through the real capture and
         keeps the answer key on the server. Only on a defense lab URL (422 in `defense_lab`); one open round per
-        URL (409); up to 6 rounds per minute per URL. The seed is only returned in the report.
+        URL (409); up to 6 rounds per minute per URL. Opening a round keeps the lab active for 30 min; a lab
+        that is no longer active needs a free slot among the 20 (429). The seed is only returned in the report.
       security:
         - {}
         - readSecret: []
@@ -1666,7 +1670,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '429':
           description: >-
-            Too many defense rounds on this URL, or (on a protected URL) too many wrong read secrets.
+            Too many defense rounds on this URL, 20 other defense labs active on the server, or (on a protected
+            URL) too many wrong read secrets.
           headers:
             Retry-After:
               $ref: '#/components/headers/RetryAfter'

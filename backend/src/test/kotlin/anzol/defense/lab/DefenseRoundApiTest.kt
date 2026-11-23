@@ -18,6 +18,8 @@ import java.net.http.HttpResponse
 private const val UNKNOWN_ROUND = "00000000-0000-4000-8000-000000000000"
 private const val LEGITIMATE = 18
 private const val ATTACKS = 14
+private const val LABS = "anzol:defense-labs"
+private const val SLOT_MILLIS = 1_800_000L
 
 /** Os ataques que o piso pega: os quatro de integridade. */
 private const val FLOOR_ATTACKS = 4
@@ -449,6 +451,60 @@ class DefenseRoundApiTest(
             )
 
         assertThat(answers.map { it.statusCode() }).containsOnly(404)
+        delete(lab)
+    }
+
+    private fun held(lab: JsonNode): Long? =
+        redis
+            .opsForZSet()
+            .score(LABS, id(lab))
+            ?.toLong()
+            ?.minus(System.currentTimeMillis())
+
+    private fun occupy(slots: Int) {
+        redis.delete(LABS)
+        repeat(slots) { redis.opsForZSet().add(LABS, "ocupada-$it", (System.currentTimeMillis() + 600_000).toDouble()) }
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL de laboratório de defesa com a vaga vencida e vaga livre no servidor, quando abre a rodada, então 201 e a vaga " +
+            "volta por 30 min",
+    )
+    fun start_vagaVencida_comVagaLivre_deveRetomar() {
+        val lab = lab()
+        redis.opsForZSet().remove(LABS, id(lab))
+
+        val response = start(lab)
+
+        assertThat(response.statusCode()).isEqualTo(201)
+        assertThat(held(lab)).isBetween(SLOT_MILLIS - 60_000, SLOT_MILLIS)
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL de laboratório de defesa com a vaga vencida e o servidor cheio, quando abre a rodada, então 429 com Retry-After, " +
+            "e a URL segue abrindo",
+    )
+    fun start_vagaVencida_comServidorCheio_deveDar429() {
+        val lab = lab()
+        occupy(MAX_ACTIVE_DEFENSE_LABS)
+
+        val refused = start(lab)
+        val read = api.send("GET", "/token/${id(lab)}", headers = JSON_CLIENT + secret(lab))
+        redis.delete(LABS)
+
+        assertThat(refused.statusCode()).isEqualTo(429)
+        assertThat(
+            refused
+                .headers()
+                .firstValue("Retry-After")
+                .orElseThrow()
+                .toLong(),
+        ).isBetween(1, 600)
+        assertThat(refused.body()).contains("active defense lab URLs")
+        assertThat(read.statusCode()).isEqualTo(200)
         delete(lab)
     }
 

@@ -10,17 +10,34 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.data.redis.core.StringRedisTemplate
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpResponse
+
+private const val LABS = "anzol:labs"
+private const val SLOT_MILLIS = 1_800_000L
 
 @ApiTest
 @DisplayName("Rodada de cenários numa URL de laboratório E2EE")
 class LabRunApiTest(
     @LocalServerPort port: Int,
     jsonMapper: JsonMapper,
+    private val redis: StringRedisTemplate,
 ) {
     private val api = ApiClient(port, jsonMapper)
+
+    private fun held(lab: JsonNode): Long? =
+        redis
+            .opsForZSet()
+            .score(LABS, id(lab))
+            ?.toLong()
+            ?.minus(System.currentTimeMillis())
+
+    private fun occupy(slots: Int) {
+        redis.delete(LABS)
+        repeat(slots) { redis.opsForZSet().add(LABS, "ocupada-$it", (System.currentTimeMillis() + 600_000).toDouble()) }
+    }
 
     private fun lab(): JsonNode = api.json(api.send("POST", "/e2ee-lab", "{}".toByteArray(), JSON_BODY))
 
@@ -102,6 +119,62 @@ class LabRunApiTest(
         assertThat(unknown.statusCode()).isEqualTo(422)
         assertThat(api.json(unknown).has("scenarios.1")).isTrue()
         assertThat(noSecret.statusCode()).isEqualTo(401)
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL de laboratório com a vaga vencida e vaga livre no servidor, quando roda, então 200 e a vaga volta por 30 min",
+    )
+    fun run_vagaVencida_comVagaLivre_deveRetomar() {
+        val lab = lab()
+        redis.opsForZSet().remove(LABS, id(lab))
+
+        val response = run(lab, """{"scenarios":["P1"]}""")
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(held(lab)).isBetween(SLOT_MILLIS - 60_000, SLOT_MILLIS)
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName(
+        "Dado uma URL de laboratório com a vaga vencida e o servidor cheio, quando roda, então 429 com Retry-After, e a URL segue abrindo",
+    )
+    fun run_vagaVencida_comServidorCheio_deveSer429() {
+        val lab = lab()
+        occupy(MAX_ACTIVE_LABS)
+
+        val refused = run(lab, """{"scenarios":["P1"]}""")
+        val read = api.send("GET", "/token/${id(lab)}", headers = JSON_CLIENT + secret(lab))
+        redis.delete(LABS)
+
+        assertThat(refused.statusCode()).isEqualTo(429)
+        assertThat(
+            refused
+                .headers()
+                .firstValue("Retry-After")
+                .orElseThrow()
+                .toLong(),
+        ).isBetween(1, 600)
+        assertThat(refused.body()).contains("active lab URLs")
+        assertThat(read.statusCode()).isEqualTo(200)
+        delete(lab)
+    }
+
+    @Test
+    @DisplayName("Dado o servidor cheio e a URL de laboratório com vaga, quando roda, então 200 e a vaga dela é renovada")
+    fun run_comVaga_comServidorCheio_deveRenovar() {
+        val lab = lab()
+        occupy(MAX_ACTIVE_LABS - 1)
+        redis.opsForZSet().add(LABS, id(lab), (System.currentTimeMillis() + 60_000).toDouble())
+
+        val response = run(lab, """{"scenarios":["P1"]}""")
+        val held = held(lab)
+        redis.delete(LABS)
+
+        assertThat(response.statusCode()).isEqualTo(200)
+        assertThat(held).isBetween(SLOT_MILLIS - 60_000, SLOT_MILLIS)
         delete(lab)
     }
 

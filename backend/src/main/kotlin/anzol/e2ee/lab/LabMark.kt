@@ -19,6 +19,8 @@ val LAB_LIFETIME: Duration = Duration.ofHours(24)
 /** URLs de laboratório ativas no servidor, ao mesmo tempo. */
 const val MAX_ACTIVE_LABS = 20
 
+const val LABS_FULL = "There are already $MAX_ACTIVE_LABS active lab URLs; delete one or wait."
+
 private val TIMESTAMP: DateTimeFormatter = DateTimeFormatter.ofPattern(TIMESTAMP_PATTERN)
 
 /**
