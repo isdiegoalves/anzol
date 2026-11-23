@@ -11,7 +11,7 @@
 Uma URL grava toda requisição HTTP e a mostra ao vivo, com regras de resposta, assinatura HMAC, JSON Schema,<br>
 decifra E2EE e injeção de falhas, sem expor porta nem IP público (*anzol* é “fishhook” em português).
 
-![Kotlin · Spring Boot 4.1 | Angular 22](https://img.shields.io/badge/Kotlin_%C2%B7_Spring_Boot_4.1-Angular_22-1B5A68?labelColor=6B737C)
+![Kotlin · Spring Boot 4.2 | Angular 22](https://img.shields.io/badge/Kotlin_%C2%B7_Spring_Boot_4.2-Angular_22-1B5A68?labelColor=6B737C)
 ![OpenAPI 3.1 · MCP · JSON Schema 2020-12 | protocolos](https://img.shields.io/badge/OpenAPI_3.1_%C2%B7_MCP_%C2%B7_JSON_Schema_2020--12-protocolos-1B5A68?labelColor=6B737C)
 ![licença | MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-1B5A68?labelColor=6B737C)
 ![versão | 0.9.4](https://img.shields.io/badge/vers%C3%A3o-0.9.4-1B5A68?labelColor=6B737C)
@@ -262,7 +262,7 @@ riscos e limites em [`docs/mcp-e-ia.md`](docs/mcp-e-ia.md#ia-local).
   [`docs/privacidade.md`](docs/privacidade.md).
 - `./ci.sh` roda backend, CLI e tela e, num stack isolado na porta 8088, o contrato, o E2E da tela e o aceite do CLI.
   Cada suíte, o que o `./ci.sh` faz e os padrões de código em [`docs/desenvolvimento.md`](docs/desenvolvimento.md).
-- Partes: API, webhook e tempo real em Kotlin 2.4 + Spring Boot 4.1 (`backend/`); tela em Angular 22 + Angular
+- Partes: API, webhook e tempo real em Kotlin 2.4 + Spring Boot 4.2 (`backend/`); tela em Angular 22 + Angular
   Material (`frontend/`); CLI em Kotlin + Clikt (`cli/`); Redis 8.10; contrato caixa-preta em Playwright
   (`tests/contract/`).
 
