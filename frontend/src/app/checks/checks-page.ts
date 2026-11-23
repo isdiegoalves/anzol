@@ -26,6 +26,7 @@ import { SLOW_READ_MS } from '../ui/notice';
 import { SlowNotice } from '../ui/slow-notice';
 import { ChangesBar } from './changes-bar';
 import { ChecksDraft, SectionId, StoredDraft, changeText } from './checks-draft';
+import { DefenseCard } from './defense-card';
 import { E2eeCard } from './e2ee-card';
 import { HealthCard } from './health-card';
 import { PrivacyCard } from './privacy-card';
@@ -60,6 +61,7 @@ export function checksSections() {
       title: $localize`E2EE decryption`,
       icon: 'key',
     },
+    { id: 'defense', label: $localize`Defense`, title: $localize`Defense lab`, icon: 'bolt' },
     { id: 'health', label: $localize`Health`, title: $localize`Health`, icon: 'activity' },
   ] as const;
 }
@@ -90,6 +92,7 @@ interface SectionState {
     SignatureCard,
     SchemaCard,
     E2eeCard,
+    DefenseCard,
     ResponseCard,
     PrivacyCard,
     HealthCard,

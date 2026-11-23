@@ -148,6 +148,7 @@ describe('Dado a página Checks', () => {
       'Response',
       'Privacy',
       'Decryption',
+      'Defense',
       'Health',
     ]);
     for (const link of links) {
@@ -268,6 +269,7 @@ describe('Dado a página Checks', () => {
         'checks-response',
         'checks-privacy',
         'checks-e2ee',
+        'checks-defense',
         'checks-health',
       ]);
       expect(
@@ -280,6 +282,7 @@ describe('Dado a página Checks', () => {
         'Response',
         'Privacy',
         'E2EE decryption',
+        'Defense lab',
         'Health',
       ]);
       expect(page.querySelector('.columns')).toBeNull();
@@ -309,6 +312,7 @@ describe('Dado a página Checks', () => {
         'Response · 429',
         'Privacy · Open',
         'Decryption · Off',
+        'Defense',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-label'))).toEqual([
@@ -317,12 +321,14 @@ describe('Dado a página Checks', () => {
         'Response, 429',
         'Privacy, open',
         'Decryption, Off',
+        'Defense',
         'Health',
       ]);
       expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([
         null,
         null,
         'location',
+        null,
         null,
         null,
         null,
@@ -865,6 +871,7 @@ describe('Dado os atalhos "On this page" de Checks', () => {
       'Resposta',
       'Privacidade',
       'Decifra',
+      'Defesa',
       'Saúde',
     ]);
   });

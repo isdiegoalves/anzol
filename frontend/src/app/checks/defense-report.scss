@@ -1,0 +1,146 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--mat-sys-error);
+
+  strong {
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-headline-small);
+    font-variation-settings: var(--app-heading-variation);
+  }
+
+  &.all {
+    color: var(--app-success);
+  }
+}
+
+.numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 10px;
+    border-left: 2px solid var(--mat-sys-outline-variant);
+  }
+
+  li.loosened {
+    border-left-color: var(--mat-sys-error);
+  }
+
+  .label {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-medium);
+  }
+
+  .value {
+    font: var(--mat-sys-body-medium);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.hint {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+.table-scroll {
+  overflow-x: auto;
+
+  &:focus-visible {
+    outline: var(--app-focus-width) solid var(--app-focus-color);
+    outline-offset: var(--app-focus-offset);
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--mat-sys-body-small);
+
+  th,
+  td {
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    padding-block: 4px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-medium);
+    white-space: nowrap;
+  }
+
+  tbody tr + tr {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  tr.missed {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+
+  code {
+    font: 12px / 1.5 var(--app-code-family);
+  }
+}
+
+.description {
+  min-width: 14rem;
+
+  .family {
+    display: block;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+tr.missed .description .family {
+  color: inherit;
+}
+
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+
+  &.ok app-icon {
+    color: var(--app-success);
+  }
+
+  &.bad app-icon {
+    color: var(--mat-sys-error);
+  }
+}
+
+tr.missed .verdict.bad app-icon {
+  color: inherit;
+}
+
+td.obeyed {
+  color: var(--mat-sys-error);
+  font-weight: 600;
+}
+
+tr.missed td.obeyed {
+  color: inherit;
+}
