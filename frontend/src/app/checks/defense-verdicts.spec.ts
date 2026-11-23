@@ -68,7 +68,10 @@ async function openWithRound(stored: Record<string, unknown> = {}) {
   http
     .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
     .flush(
-      { message: 'This round is still open; finish it to get the report' },
+      {
+        success: false,
+        error: { message: 'This round is still open; finish it to get the report', id: null },
+      },
       { status: 409, statusText: 'Conflict' },
     );
   await answerWave(http);
@@ -217,7 +220,10 @@ describe('Dado a rodada aberta no laboratório de defesa, com veredictos à mão
     http
       .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
       .flush(
-        { message: 'This round is still open; finish it to get the report' },
+        {
+          success: false,
+          error: { message: 'This round is still open; finish it to get the report', id: null },
+        },
         { status: 409, statusText: 'Conflict' },
       );
 

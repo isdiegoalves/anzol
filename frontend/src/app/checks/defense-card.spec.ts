@@ -273,7 +273,10 @@ describe('Dado o laboratório de defesa em Checks', () => {
       await userEvent.click(start());
       await answerNewest(http, 3);
       (await vi.waitFor(() => http.expectOne(`/token/${TOKEN_ID}/defense-lab/rounds`))).flush(
-        { message: 'This URL already has an open round; finish it first' },
+        {
+          success: false,
+          error: { message: 'This URL already has an open round; finish it first', id: null },
+        },
         { status: 409, statusText: 'Conflict' },
       );
 
@@ -300,7 +303,10 @@ describe('Dado o laboratório de defesa em Checks', () => {
       await userEvent.click(within(card()).getByRole('button', { name: 'Open the round' }));
       http
         .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
-        .flush({ message: 'Round not found' }, { status: 404, statusText: 'Not Found' });
+        .flush(
+          { success: false, error: { message: 'Round not found', id: null } },
+          { status: 404, statusText: 'Not Found' },
+        );
 
       const alerta = await vi.waitFor(() => within(card()).getByRole('alert'));
       expect(alerta.textContent).toContain('There is no round with this id on this URL.');
@@ -320,7 +326,10 @@ describe('Dado o laboratório de defesa em Checks', () => {
       http
         .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
         .flush(
-          { message: 'This round is still open; finish it to get the report' },
+          {
+            success: false,
+            error: { message: 'This round is still open; finish it to get the report', id: null },
+          },
           { status: 409, statusText: 'Conflict' },
         );
       await vi.waitFor(() => expect(finish()).toBeTruthy());
@@ -376,7 +385,10 @@ describe('Dado o laboratório de defesa em Checks', () => {
 
       http
         .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
-        .flush({ message: 'Round not found' }, { status: 404, statusText: 'Not Found' });
+        .flush(
+          { success: false, error: { message: 'Round not found', id: null } },
+          { status: 404, statusText: 'Not Found' },
+        );
 
       await vi.waitFor(() => expect(start()).toBeTruthy());
       expect(localStorage.getItem(`anzol.defenseRound.${TOKEN_ID}`)).toBeNull();
@@ -387,7 +399,10 @@ describe('Dado o laboratório de defesa em Checks', () => {
       http
         .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
         .flush(
-          { message: 'This round is still open; finish it to get the report' },
+          {
+            success: false,
+            error: { message: 'This round is still open; finish it to get the report', id: null },
+          },
           { status: 409, statusText: 'Conflict' },
         );
       await vi.waitFor(() => expect(finish()).toBeTruthy());

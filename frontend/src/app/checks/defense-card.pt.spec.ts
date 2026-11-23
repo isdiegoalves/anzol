@@ -148,7 +148,10 @@ describe('Dado o laboratório de defesa com a tela em pt-BR', () => {
     http
       .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
       .flush(
-        { message: 'This round is still open; finish it to get the report' },
+        {
+          success: false,
+          error: { message: 'This round is still open; finish it to get the report', id: null },
+        },
         { status: 409, statusText: 'Conflict' },
       );
     const onda = await vi.waitFor(() => http.expectOne((sent) => sent.params.get('after') === '0'));

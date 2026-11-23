@@ -280,10 +280,17 @@ export function defenseFailure(error: unknown, fallback: (status: string) => str
   return fallback(String(error.status));
 }
 
-/** O `error` (ou `message`) do corpo do erro, como o servidor o mandou. */
+/**
+ * A frase do corpo do erro, como o servidor a mandou: `{error: "…"}` no 429 e
+ * `{success: false, error: {message: "…"}}` no 404 e no 409.
+ */
 function serverMessage(error: HttpErrorResponse): string | null {
-  const body = error.error as { error?: unknown; message?: unknown } | null;
-  const message = body?.error ?? body?.message;
+  const body = error.error as { error?: unknown } | null;
+  const inner = body?.error;
+  if (typeof inner === 'string') {
+    return inner;
+  }
+  const message = (inner as { message?: unknown } | null | undefined)?.message;
   return typeof message === 'string' ? message : null;
 }
 
