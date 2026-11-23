@@ -294,20 +294,21 @@ catálogo com o esperado da política padrão:
 Um campo de provas para defesa de webhook. O servidor entrega numa URL marcada tráfego sintético com gabarito, legítimo
 e ataque misturados. Um defensor classifica as requisições e grava regras de resposta, e o servidor mede o resultado.
 O defensor pode ser um script ou um agente de IA pelo [MCP](mcp-e-ia.md#laboratório-de-defesa). Os ataques são
-sintéticos e só chegam à URL de laboratório da própria instância.
+sintéticos e só chegam à URL de laboratório da própria instância. O caminho do zero ao primeiro relatório, e a leitura
+dele, estão no [guia do laboratório de defesa](laboratorio-defesa.md).
 
 `POST /defense-lab` (sem campos) cria uma URL **nova**: segredo de leitura gerado (devolvido só aí), assinatura no
 formato da Stripe com tolerância de 300 s, o JSON Schema do evento e nenhuma regra. O segredo do HMAC não sai: o
-defensor não assina nada. A resposta traz também o `briefing`, o contexto que um operador teria (os eventos de uma
-loja fictícia, a ordem normal deles, a faixa de valores e as contas), e o catálogo. A URL vive 24 h, contadas da
-criação. O servidor aceita até 20 ativas (a 21ª dá 422 em `defense_lab`): a URL conta como ativa por 30 min depois
-de criada e depois de cada rodada aberta. Fora desse prazo ela segue abrindo e só deixa de ocupar vaga.
+defensor não assina nada. A resposta é `{token, read_secret, briefing, scenarios}`: a URL, o segredo, o `briefing`,
+o contexto que um operador teria (os eventos de uma loja fictícia, a ordem normal deles, a faixa de valores e as
+contas), e o catálogo em `scenarios`. A URL vive 24 h, contadas da criação. O servidor aceita até 20 ativas (a 21ª
+dá 422 em `defense_lab`): a URL conta como ativa por 30 min depois de criada e depois de cada rodada aberta. Fora desse prazo ela segue abrindo e só deixa de ocupar vaga.
 
 ### A rodada
 
 | Passo | Rota | O que acontece |
 |---|---|---|
-| Abrir | `POST /token/{id}/defense-lab/rounds` (`{"seed"?: inteiro}`) | O servidor entrega a onda 1 pela captura real: 18 legítimas e um ataque por cenário, em ordem sorteada. Devolve `{round_id, catalog_version, requests}` |
+| Abrir | `POST /token/{id}/defense-lab/rounds` (`{"seed"?: inteiro}`) | O servidor entrega a onda 1 pela captura real: 18 legítimas e um ataque por cenário, em ordem sorteada. Devolve `{round_id, catalog_version, requests}`, em que `requests` é a contagem de requisições entregues (32), não a lista delas |
 | Ler | as rotas de sempre (`GET .../requests`, `GET .../request/{rid}`, busca, stream) | Nenhuma diz qual requisição é ataque: o gabarito fica no servidor |
 | Julgar | `POST .../rounds/{round}/verdicts` (`{"verdicts": [{request_id, verdict, family?}]}`) | `verdict` é `legitimate` ou `attack`. Pode vir em partes; para a mesma requisição vale o último. Sem veredicto, a requisição conta como legítima e fica fora da cobertura |
 | Conter | `PUT /token/{id}/rules` | O defensor grava regras de resposta. É o único atuador medido |

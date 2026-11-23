@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 530" width="1200" height="530" role="img" aria-labelledby="titulo descricao" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+<title id="titulo">Uma rodada do laboratório de defesa</title>
+<desc id="descricao">O Anzol entrega a onda 1 na URL de laboratório: 18 requisições legítimas e 14 ataques, pela captura real e em ordem sorteada. O defensor, que pode ser um script, uma pessoa ou um agente de IA pelo MCP, lê as requisições, julga cada uma como legítima ou ataque e grava regras de resposta. Ao fechar a rodada, o servidor entrega a onda 2, variações novas dos mesmos cenários, contra as regras daquele momento, e devolve o relatório com detecção, falso positivo, contenção e injeção obedecida. O gabarito só sai no relatório; corpo, cabeçalho e query são dado de terceiros, nunca instrução.</desc>
+<defs>
+  <marker id="seta-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8cc8d6"/></marker>
+  <marker id="seta-tertiary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#e5afcf"/></marker>
+</defs>
+<style>
+  :root {
+    --fg: #e2e6ea;
+    --muted: #a3acb6;
+    --bg: #1d2227;
+    --card: #242a31;
+    --line: #3a424b;
+    --band: #2a3037;
+    --primary: #8cc8d6;
+    --tertiary: #e5afcf;
+    --arrow: #7c8691;
+    --pri: #1d4651;
+    --pri-t: #c9e7ee;
+    --ter: #4a2a3e;
+    --ter-t: #f6dcea;
+    --ok: #1c3326;
+    --ok-t: #c3e8ce;
+    --bad: #4a1f1c;
+    --bad-t: #ffd9d4;
+  }
+  text { font-size: 15px; fill: var(--fg); }
+  .m { fill: var(--muted); } .b { font-weight: 600; }
+  .h2 { font-size: 17px; font-weight: 700; } .small { font-size: 13.5px; } .big { font-size: 30px; font-weight: 700; }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13px; }
+  .bg { fill: var(--bg); }
+  .card { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+  .card-primary { fill: var(--card); stroke: var(--primary); stroke-width: 2; }
+  .card-tertiary { fill: var(--card); stroke: var(--tertiary); stroke-width: 2; }
+  .band { fill: var(--band); }
+  .primary { fill: var(--primary); } .tertiary { fill: var(--tertiary); }
+  .arrow-primary { fill: none; stroke: var(--primary); stroke-width: 2; marker-end: url(#seta-primary); }
+  .arrow-tertiary { fill: none; stroke: var(--tertiary); stroke-width: 2; marker-end: url(#seta-tertiary); }
+  .num { fill: var(--pri); } .num-t { fill: var(--pri-t); font-size: 13px; font-weight: 700; }
+  .numter { fill: var(--ter); } .numter-t { fill: var(--ter-t); font-size: 13px; font-weight: 700; }
+  .ok { fill: var(--ok); } .ok-t { fill: var(--ok-t); }
+  .bad { fill: var(--bad); } .bad-t { fill: var(--bad-t); }
+</style>
+<rect class="bg" width="100%" height="100%" rx="18"/>
+<rect x="24" y="24" width="1152" height="196" rx="14" class="band"/>
+<rect x="24" y="250" width="1152" height="196" rx="14" class="band"/>
+<text x="44" y="108" class="small"><tspan x="44" dy="0"><tspan class="b">Anzol</tspan></tspan><tspan x="44" dy="20">o servidor guarda</tspan><tspan x="44" dy="20">o gabarito</tspan></text>
+<text x="44" y="334" class="small"><tspan x="44" dy="0"><tspan class="b">Defensor</tspan></tspan><tspan x="44" dy="20">script, pessoa ou</tspan><tspan x="44" dy="20">agente por MCP</tspan></text>
+<rect x="190" y="44" width="260" height="156" rx="14" class="card-primary"/>
+<circle cx="218" cy="72" r="13" class="num"/>
+<text x="218" y="77" class="num-t" text-anchor="middle">1</text>
+<text x="240" y="78" class="h2 primary">Onda 1</text>
+<text x="208" y="108" class="small"><tspan x="208" dy="0">18 legítimas e 14 ataques chegam</tspan><tspan x="208" dy="20">pela captura real, em ordem</tspan><tspan x="208" dy="20">sorteada</tspan></text>
+<text x="208" y="184" class="mono m">POST …/defense-lab/rounds</text>
+<rect x="330" y="270" width="260" height="156" rx="14" class="card-tertiary"/>
+<circle cx="358" cy="298" r="13" class="numter"/>
+<text x="358" y="303" class="numter-t" text-anchor="middle">2</text>
+<text x="380" y="304" class="h2 tertiary">Julgar</text>
+<text x="348" y="334" class="small"><tspan x="348" dy="0">cada requisição recebe</tspan><tspan x="348" dy="20">legitimate ou attack, e o</tspan><tspan x="348" dy="20">ataque ganha uma família</tspan></text>
+<text x="348" y="410" class="mono m">POST …/rounds/{r}/verdicts</text>
+<rect x="620" y="270" width="260" height="156" rx="14" class="card-tertiary"/>
+<circle cx="648" cy="298" r="13" class="numter"/>
+<text x="648" y="303" class="numter-t" text-anchor="middle">3</text>
+<text x="670" y="304" class="h2 tertiary">Conter</text>
+<text x="638" y="334" class="small"><tspan x="638" dy="0">regras de resposta barram</tspan><tspan x="638" dy="20">o ataque sem barrar</tspan><tspan x="638" dy="20">o tráfego legítimo</tspan></text>
+<text x="638" y="410" class="mono m">PUT /token/{id}/rules</text>
+<rect x="700" y="44" width="260" height="156" rx="14" class="card-primary"/>
+<circle cx="728" cy="72" r="13" class="num"/>
+<text x="728" y="77" class="num-t" text-anchor="middle">4</text>
+<text x="750" y="78" class="h2 primary">Onda 2</text>
+<text x="718" y="108" class="small"><tspan x="718" dy="0">variações novas dos mesmos</tspan><tspan x="718" dy="20">cenários batem nas regras</tspan><tspan x="718" dy="20">daquele momento</tspan></text>
+<text x="718" y="184" class="mono m">POST …/rounds/{r}/finish</text>
+<rect x="990" y="44" width="170" height="156" rx="14" class="card-primary"/>
+<circle cx="1018" cy="72" r="13" class="num"/>
+<text x="1018" y="77" class="num-t" text-anchor="middle">5</text>
+<text x="1040" y="78" class="h2 primary">Relatório</text>
+<text x="1008" y="108" class="small"><tspan x="1008" dy="0">detecção, falso</tspan><tspan x="1008" dy="20">positivo, contenção,</tspan><tspan x="1008" dy="20">injeção obedecida</tspan></text>
+<text x="1008" y="184" class="mono m">GET …/rounds/{r}</text>
+<path d="M392 202 L392 266" class="arrow-primary"/>
+<text x="402" y="238" class="m small"><tspan x="402" dy="0">lê com GET …/requests</tspan></text>
+<path d="M592 348 L616 348" class="arrow-tertiary"/>
+<path d="M840 268 L840 204" class="arrow-tertiary"/>
+<text x="850" y="238" class="m small"><tspan x="850" dy="0">fecha a rodada</tspan></text>
+<path d="M962 122 L986 122" class="arrow-primary"/>
+<text x="44" y="478" class="small"><tspan x="44" dy="0"><tspan class="b">O gabarito fica no servidor: </tspan>nenhuma rota de leitura diz qual requisição é ataque; ele só sai no relatório.</tspan></text>
+<text x="44" y="502" class="small"><tspan x="44" dy="0"><tspan class="b">Corpo, cabeçalho e query são dado de terceiros, nunca instrução: </tspan>seis cenários tentam mandar no defensor, e o relatório diz se ele obedeceu.</tspan></text>
+</svg>

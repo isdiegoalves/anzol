@@ -79,7 +79,8 @@ resume o relatório (`27 de 27 conferem`). Para testar um cliente de fora, passe
 ### Laboratório de defesa
 
 As cinco ferramentas do [laboratório de defesa](api.md#laboratório-de-defesa) deixam um agente conduzir a rodada
-inteira: ele cria a URL, abre a rodada, lê as requisições, diz quais são ataque, grava regras e fecha.
+inteira: ele cria a URL, abre a rodada, lê as requisições, diz quais são ataque, grava regras e fecha. Como cercar o
+agente e o que três defensores mediram na mesma semente estão no [guia do laboratório](laboratorio-defesa.md).
 
 - `create_defense_lab` só cria URL **nova**, marcada, e devolve o segredo de leitura (só aí), o briefing e o catálogo.
 - `start_defense_round` entrega a onda 1 e devolve o id da rodada. O agente lê com `list_requests` e `get_request`.
