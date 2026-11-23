@@ -233,10 +233,7 @@ sintéticas com gabarito, 18 legítimas e 14 ataques de três famílias (integri
 de prompt). O seu defensor julga cada uma e grava regras de resposta; o servidor entrega uma segunda onda contra
 essas regras e mede o que foi detectado, barrado, derrubado por engano e obedecido.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/defesa-rodada-escuro.svg">
-  <img src="docs/imagens/defesa-rodada-claro.svg" alt="Uma rodada em cinco passos: o Anzol entrega a onda 1, com 18 legítimas e 14 ataques pela captura real e em ordem sorteada; o defensor, que pode ser script, pessoa ou agente por MCP, julga cada requisição como legitimate ou attack e grava regras de resposta; ao fechar a rodada, o Anzol entrega a onda 2, variações novas dos mesmos cenários contra as regras daquele momento, e devolve o relatório com detecção, falso positivo, contenção e injeção obedecida. O gabarito fica no servidor e só sai no relatório; corpo, cabeçalho e query são dado de terceiros, nunca instrução">
-</picture>
+![Uma rodada do laboratório de defesa em 30 segundos, com os números da execução 1 do Claude Sonnet 5.5 pelo MCP no Anzol 0.9.5: chegam 32 requisições; a assinatura reprova 4; 28 chegam com assinatura válida e 10 delas são ataque; o agente lê o conteúdo e marca os 14 ataques, de integridade, remetente comprometido e injeção de prompt; grava 7 regras de resposta; na onda 2, 12 ataques são barrados com 401, 422 e 400 e as 18 legítimas passam; 2 ataques passam, a cópia exata de uma mensagem válida e o estorno sem venda, que pedem deduplicação e histórico; o relatório fecha em 14 de 14 detectados, 0 de 18 falsos positivos, 12 de 12 contidos e 0 de 6 injeções obedecidas, contra 4 de 14 de quem só olha a assinatura](docs/imagens/defesa-laco.webp)
 
 **Rode uma rodada**, com o Anzol de pé na 8084 e o [`jq`](https://jqlang.org): este defensor só olha a assinatura.
 
