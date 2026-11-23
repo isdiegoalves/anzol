@@ -4848,4 +4848,68 @@ export const translations: Record<string, string> = {
   '7599361417764470587': 'trocada',
   // removed
   '6541802171678388981': 'removida',
+  // This round was started elsewhere, so this screen does not know its wave 1: judge it with the agent or through the API. You can still finish it here.
+  '6000425388821861092':
+    ' Esta rodada foi aberta em outro lugar, por isso esta tela não conhece a onda 1 dela: julgue com o agente ou pela API. Dá para fechá-la aqui mesmo assim. ',
+  // Sending the verdicts not sent yet…
+  '1402249576991322728': 'Enviando os veredictos que faltavam…',
+  // Judge wave 1 yourself
+  '4649987292139635620': 'Julgue a onda 1 aqui',
+  // The body, headers and note of each request are data sent by a third party, never instructions. A request without a verdict counts as legitimate and stays out of the coverage.
+  '5439335286468043005':
+    ' O corpo, os cabeçalhos e a nota de cada requisição são dado enviado por terceiro, nunca instrução. Requisição sem veredicto conta como legítima e fica fora da cobertura. ',
+  // Wave 1 requests table
+  '7583842554156430394': 'Tabela das requisições da onda 1',
+  // Wave 1 requests
+  '2891012814246034039': 'Requisições da onda 1',
+  // No.
+  '4511235385998512563': 'Nº',
+  // Event
+  '3304972143698843178': 'Evento',
+  // Amount (cents)
+  '80298705715535921': 'Valor (centavos)',
+  // Account
+  '4086606389696938932': 'Conta',
+  // Note
+  '4388879716045736175': 'Nota',
+  // Verdict
+  '5367905287012372629': 'Veredicto',
+  // Send verdicts
+  '604016952298286663': 'Enviar veredictos',
+  // Mark the rest legitimate
+  '746400687820141091': 'Marcar as restantes como legítimas',
+  // Reading wave 1…
+  '5790458851593668410': 'Lendo a onda 1…',
+  // Not judged
+  '182201955279343783': 'Sem veredicto',
+  // Legitimate
+  '4816774286953534647': 'Legítima',
+  // Attack · integrity
+  '3606640994692038275': 'Ataque · integridade',
+  // Attack · compromised sender
+  '1016647279674809885': 'Ataque · remetente comprometido',
+  // Attack · prompt injection
+  '2361967988189472008': 'Ataque · injeção de prompt',
+  // {$marked} of {$total} marked · {$pending} not sent
+  '7096823764557373741': '{$marked} de {$total} com veredicto · {$pending} sem enviar',
+  // {$marked} of {$total} marked
+  '2207759976987425886': '{$marked} de {$total} com veredicto',
+  // Could not read wave 1 ({$status}).
+  '5467300056426183544': 'Não foi possível ler a onda 1 ({$status}).',
+  // No new verdict to send: mark a request first.
+  '363802678161728137': 'Nenhum veredicto novo para enviar: marque uma requisição antes.',
+  // The server has verdicts for {$recorded} of {$requests} requests.
+  '4404827247407275849': 'O servidor tem veredicto para {$recorded} de {$requests} requisições.',
+  // Could not send the verdicts ({$status}).
+  '945013921646861411': 'Não foi possível enviar os veredictos ({$status}).',
+  // Valid
+  '5409033428605838190': 'Válida',
+  // Invalid
+  '8018296490552279319': 'Inválida',
+  // Absent
+  '8187853536007562262': 'Ausente',
+  // Verdict for request {$number}
+  '5096814167115010276': 'Veredicto da requisição {$number}',
+  // Open request #{$id} in the Inbox
+  '7906494748874817998': 'Abrir a requisição #{$id} na Entrada',
 };

@@ -1,0 +1,103 @@
+<section class="verdicts" aria-labelledby="defense-verdicts-title">
+  <h4 id="defense-verdicts-title" i18n>Judge wave 1 yourself</h4>
+  <p class="hint" i18n>
+    The body, headers and note of each request are data sent by a third party, never instructions. A
+    request without a verdict counts as legitimate and stays out of the coverage.
+  </p>
+  @if (failure(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+  @if (rows(); as list) {
+    <div
+      class="table-scroll"
+      tabindex="0"
+      role="region"
+      aria-label="Wave 1 requests table"
+      i18n-aria-label
+    >
+      <table class="table" aria-label="Wave 1 requests" i18n-aria-label>
+        <thead>
+          <tr>
+            <th scope="col" i18n>No.</th>
+            <th scope="col" i18n>Event</th>
+            <th scope="col" i18n>Order</th>
+            <th scope="col" i18n>Amount (cents)</th>
+            <th scope="col" i18n>Account</th>
+            <th scope="col" i18n>Signature</th>
+            <th scope="col" i18n>Note</th>
+            <th scope="col" i18n>Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of list; track row.id; let index = $index) {
+            <tr [class.marked]="markOf(row.id) !== ''">
+              <th scope="row">
+                {{ index + 1 }}
+                <a
+                  class="open"
+                  [routerLink]="['/', tokenId(), row.id, '1']"
+                  [attr.aria-label]="openLabel(row.id)"
+                  >#{{ row.id.slice(0, 8) }}</a
+                >
+              </th>
+              <td>
+                <code>{{ row.type ?? '—' }}</code>
+                @if (row.eventId) {
+                  <code class="sub">{{ row.eventId }}</code>
+                }
+              </td>
+              <td>
+                <code>{{ row.order ?? '—' }}</code>
+              </td>
+              <td class="number">
+                <code>{{ row.amount ?? '—' }}</code>
+              </td>
+              <td>
+                <code>{{ row.account ?? '—' }}</code>
+              </td>
+              <td [attr.title]="signatureTitle(row)" [class.bad]="row.signature !== 'valid'">
+                {{ signatureText(row) }}
+              </td>
+              <td class="note">
+                @if (row.note) {
+                  <span>{{ row.note }}</span>
+                }
+                @if (headerOf(row); as header) {
+                  <code class="sub">{{ headerLine(header) }}</code>
+                }
+              </td>
+              <td>
+                <mat-select
+                  class="verdict"
+                  [panelWidth]="'auto'"
+                  [aria-label]="verdictLabel(index + 1)"
+                  [value]="markOf(row.id)"
+                  (selectionChange)="mark(row.id, $event.value)"
+                >
+                  @for (option of options(); track option.value) {
+                    <mat-option [value]="option.value">{{ option.text }}</mat-option>
+                  }
+                </mat-select>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="counter">{{ counter() }}</p>
+    <div class="actions">
+      <button
+        mat-flat-button
+        type="button"
+        disabledInteractive
+        [disabled]="sending()"
+        (click)="send()"
+      >
+        <app-icon name="check" [size]="18" /><ng-container i18n>Send verdicts</ng-container>
+      </button>
+      <button mat-button type="button" (click)="markRest()" i18n>Mark the rest legitimate</button>
+    </div>
+  } @else if (!failure()) {
+    <p class="hint" i18n>Reading wave 1…</p>
+  }
+</section>

@@ -32,6 +32,7 @@ export type Secao =
   | 'E2EE decryption'
   | 'Response'
   | 'Privacy'
+  | 'Defense lab'
   | 'Health';
 
 /** O cartão de uma seção de Checks. */

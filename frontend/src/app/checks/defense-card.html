@@ -34,7 +34,9 @@
     }
 
     <!-- Região viva fixa: o começo e o fim da rodada são anunciados quando a frase entra nela. -->
-    <p class="progress" role="status">{{ progress() }}</p>
+    <p class="progress" role="status">
+      <span appLateContent>{{ progress() }}</span>
+    </p>
     @if (failure(); as message) {
       <p class="error" role="alert">{{ message }}</p>
     }
@@ -56,6 +58,20 @@
             <app-icon name="copy" [size]="18" /><ng-container i18n>Copy</ng-container>
           </button>
         </p>
+
+        @if (current.requests.length > 0) {
+          <app-defense-verdicts
+            [tokenId]="tokenId()"
+            [round]="current"
+            (changed)="keep($event)"
+            (said)="progress.set($event)"
+          />
+        } @else {
+          <p class="hint" i18n>
+            This round was started elsewhere, so this screen does not know its wave 1: judge it with
+            the agent or through the API. You can still finish it here.
+          </p>
+        }
 
         <section class="prompt" aria-labelledby="defense-prompt-title">
           <h4 id="defense-prompt-title" i18n>Prompt for your agent</h4>

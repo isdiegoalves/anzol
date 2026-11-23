@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { SignatureState, WebhookRequest, signatureState } from '../requests/webhook-request';
 import { Token } from '../token/token';
 import { fieldErrors } from './url-settings';
 
@@ -99,6 +100,8 @@ export interface StoredRound {
   round_id: string;
   /** Os ids da onda 1, na ordem de chegada; vazio quando a rodada foi aberta em outro lugar. */
   requests: string[];
+  /** O `seq` da mensagem mais nova antes da onda 1: a tela relê a onda por ele. */
+  after?: number;
   /** Marcas da fatia de veredictos: as de agora e as já enviadas, por id de requisição. */
   marks?: Record<string, Mark>;
   sent?: Record<string, Mark>;
@@ -106,6 +109,65 @@ export interface StoredRound {
 
 /** O veredicto que a pessoa marcou numa linha: legítima ou ataque de uma família. */
 export type Mark = 'legitimate' | DefenseFamily;
+
+/** As marcas que mudaram desde o último envio, no formato de `POST .../verdicts`. */
+export function pendingVerdicts(round: StoredRound): DefenseVerdict[] {
+  const sent = round.sent ?? {};
+  return Object.entries(round.marks ?? {})
+    .filter(([requestId, mark]) => sent[requestId] !== mark && round.requests.includes(requestId))
+    .map(([requestId, mark]) =>
+      mark === 'legitimate'
+        ? { request_id: requestId, verdict: 'legitimate' }
+        : { request_id: requestId, verdict: 'attack', family: mark },
+    );
+}
+
+/** O que a tabela da onda 1 mostra de uma requisição, lido do corpo e dos cabeçalhos como vieram. */
+export interface WaveRow {
+  id: string;
+  eventId: string | null;
+  type: string | null;
+  order: string | null;
+  amount: string | null;
+  account: string | null;
+  note: string | null;
+  header: string | null;
+  signature: SignatureState | null;
+  signatureReason: string | null;
+}
+
+export function waveRow(request: WebhookRequest): WaveRow {
+  let body: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(request.content ?? '');
+    body = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    // Corpo que não é JSON: a linha mostra só o que vem fora dele.
+  }
+  const data =
+    typeof body['data'] === 'object' && body['data'] !== null
+      ? (body['data'] as Record<string, unknown>)
+      : {};
+  const text = (value: unknown) =>
+    typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+  const amount = text(data['amount']);
+  const currency = text(data['currency']);
+  const header = Object.entries(request.headers).find(
+    ([name]) => name.toLowerCase() === 'x-provider-note',
+  )?.[1]?.[0];
+  return {
+    id: request.uuid,
+    eventId: text(body['id']),
+    type: text(body['type']),
+    order: text(data['order_id']),
+    amount: amount && currency ? `${amount} ${currency}` : amount,
+    account: text(data['account']),
+    note: text(data['note']),
+    header: header ?? null,
+    signature: request.signature ? signatureState(request.signature) : null,
+    signatureReason: request.signature?.reason ?? null,
+  };
+}
 
 /** A semente aceita pelo servidor: inteiro de 0 a 2^53 − 1. */
 export const MAX_SEED = Number.MAX_SAFE_INTEGER;
@@ -123,6 +185,7 @@ export function readRound(tokenId: string): StoredRound | null {
     return {
       round_id: round.round_id,
       requests: round.requests.filter((id): id is string => typeof id === 'string'),
+      ...(typeof round.after === 'number' ? { after: round.after } : {}),
       marks: round.marks ?? {},
       sent: round.sent ?? {},
     };

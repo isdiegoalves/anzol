@@ -2,7 +2,7 @@ import { clearTranslations, loadTranslations } from '@angular/localize';
 import { screen, within } from '@testing-library/angular';
 import { expectNoAxeViolations } from '../../testing/axe';
 import { renderCard } from '../../testing/checks';
-import { TOKEN_ID, token } from '../../testing/fixtures';
+import { TOKEN_ID, requestPage, token, webhookRequest } from '../../testing/fixtures';
 import { translations } from '../../locale/pt-BR';
 import { DefenseCard } from './defense-card';
 import { DefenseReport } from './defense-lab';
@@ -132,6 +132,46 @@ describe('Dado o laboratório de defesa com a tela em pt-BR', () => {
       }),
     ).toBeTruthy();
     expect(within(cartao).getByRole('button', { name: 'Abrir outra rodada' })).toBeTruthy();
+    await expectNoAxeViolations(container);
+  });
+  it('deve mostrar a tabela de veredictos em português, com a contagem', async () => {
+    localStorage.setItem(
+      `anzol.defenseRound.${TOKEN_ID}`,
+      JSON.stringify({
+        round_id: RODADA,
+        requests: [id(1)],
+        after: 0,
+        marks: { [id(1)]: 'integrity' },
+      }),
+    );
+    const { container, http } = await renderCard(DefenseCard, LABORATORIO);
+    http
+      .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
+      .flush(
+        { message: 'This round is still open; finish it to get the report' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    const onda = await vi.waitFor(() => http.expectOne((sent) => sent.params.get('after') === '0'));
+    onda.flush(
+      requestPage([
+        webhookRequest(1, {
+          uuid: id(1),
+          content: '{"id":"evt_1","type":"payment.paid","data":{"amount":1,"currency":"BRL"}}',
+          signature: { provider: 'stripe', valid: false, reason: 'signature mismatch' },
+        }),
+      ]),
+    );
+
+    const cartao = screen.getByRole('region', { name: 'Laboratório de defesa' });
+    const tabela = await vi.waitFor(() =>
+      within(cartao).getByRole('table', { name: 'Requisições da onda 1' }),
+    );
+    expect(tabela.textContent).toContain('Inválida');
+    expect(
+      within(tabela).getByRole('combobox', { name: 'Veredicto da requisição 1' }).textContent,
+    ).toContain('Ataque · integridade');
+    expect(within(cartao).getByText('1 de 1 com veredicto · 1 sem enviar')).toBeTruthy();
+    expect(within(cartao).getByRole('button', { name: 'Enviar veredictos' })).toBeTruthy();
     await expectNoAxeViolations(container);
   });
 });

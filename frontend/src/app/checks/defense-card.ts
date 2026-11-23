@@ -10,6 +10,7 @@ import { Router } from '@angular/router';
 import { fromNow, localDate } from '../request-detail/dates';
 import { TokenStore } from '../token/token-store';
 import { Icon } from '../ui/icon';
+import { LateContent } from '../ui/late-content';
 import { NOTICE_MS, copyFailedText } from '../ui/notice';
 import { CardFold } from './card-fold';
 import { ChecksStore } from './checks-store';
@@ -23,6 +24,7 @@ import {
   defenseFailure,
   forgetRound,
   parseSeed,
+  pendingVerdicts,
   readBriefing,
   readRound,
   writeBriefing,
@@ -30,6 +32,7 @@ import {
 } from './defense-lab';
 import { DefenseReport } from './defense-report';
 import { DefenseStore } from './defense-store';
+import { DefenseVerdicts } from './defense-verdicts';
 
 /** `idle`: sem rodada; `checking`: lendo a guardada; `open`: rodada aberta; `closed`: relatório à vista. */
 type Phase = 'idle' | 'checking' | 'open' | 'closed';
@@ -44,7 +47,9 @@ type Phase = 'idle' | 'checking' | 'open' | 'closed';
   imports: [
     CdkCopyToClipboard,
     DefenseReport,
+    DefenseVerdicts,
     Icon,
+    LateContent,
     MatButton,
     MatFormField,
     MatHint,
@@ -176,6 +181,7 @@ export class DefenseCard {
       const round: StoredRound = {
         round_id: started.round_id,
         requests: wave,
+        after: before,
         marks: {},
         sent: {},
       };
@@ -246,8 +252,14 @@ export class DefenseCard {
     }
     this.busy.set(true);
     this.failure.set(null);
-    this.progress.set($localize`Delivering wave 2 and measuring. It takes a few seconds…`);
     try {
+      const pending = pendingVerdicts(round);
+      if (pending.length > 0) {
+        this.progress.set($localize`Sending the verdicts not sent yet…`);
+        await this.defense.verdicts(tokenId, round.round_id, pending);
+        this.keep({ ...round, sent: { ...round.sent, ...round.marks } });
+      }
+      this.progress.set($localize`Delivering wave 2 and measuring. It takes a few seconds…`);
       this.showReport(round, await this.defense.finish(tokenId, round.round_id));
     } catch (error) {
       this.progress.set('');
@@ -260,6 +272,12 @@ export class DefenseCard {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /** Guarda as marcas da tabela de veredictos junto da rodada. */
+  protected keep(round: StoredRound): void {
+    writeRound(this.tokenId(), round);
+    this.round.set(round);
   }
 
   private showReport(round: StoredRound, report: Report): void {
