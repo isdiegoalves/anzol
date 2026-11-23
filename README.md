@@ -18,7 +18,7 @@ And a defense lab measures what your script or AI agent blocks when the attack a
 ![Kotlin · Spring Boot 4.2 | Angular 22](https://img.shields.io/badge/Kotlin_%C2%B7_Spring_Boot_4.2-Angular_22-1B5A68?labelColor=6B737C)
 ![OpenAPI 3.1 · MCP · JSON Schema 2020-12 | protocols](https://img.shields.io/badge/OpenAPI_3.1_%C2%B7_MCP_%C2%B7_JSON_Schema_2020--12-protocols-1B5A68?labelColor=6B737C)
 ![license | MIT](https://img.shields.io/badge/license-MIT-1B5A68?labelColor=6B737C)
-![version | 0.9.6](https://img.shields.io/badge/version-0.9.6-1B5A68?labelColor=6B737C)
+![version | 0.9.7](https://img.shields.io/badge/version-0.9.7-1B5A68?labelColor=6B737C)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/isdiegoalves/anzol?label=OpenSSF%20Scorecard&labelColor=6B737C)](https://scorecard.dev/viewer/?uri=github.com/isdiegoalves/anzol)
 
 [![Run locally with Docker](https://img.shields.io/badge/Run_locally_with_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#quick-start)
@@ -80,7 +80,7 @@ docker network create anzol
 docker run -d --name anzol-db --network anzol -v anzol-db:/data redis:8.10.2-alpine \
   redis-server --maxmemory 1gb --maxmemory-policy noeviction
 docker run -d --name anzol --network anzol -p 127.0.0.1:8084:8080 -e REDIS_HOST=anzol-db \
-  ghcr.io/isdiegoalves/anzol:0.9.6
+  ghcr.io/isdiegoalves/anzol:0.9.7
 ```
 
 The tags (`X.Y.Z`, `X.Y`, `latest`) are published with every version at
