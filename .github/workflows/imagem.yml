@@ -2,7 +2,7 @@
 # do GitHub com o texto da tag anotada: o assunto vira o título e o corpo, as notas. Tag sem notas não publica nada.
 # O Helm (helm/) usa ghcr.io/isdiegoalves/anzol com a tag da versão.
 # A imagem sai com atestado de origem do build (SLSA), assinado pelo Sigstore e gravado no GHCR e no GitHub; o mesmo
-# atestado vai anexado à release. Para conferir: gh attestation verify oci://ghcr.io/isdiegoalves/anzol:<versão> -R isdiegoalves/anzol
+# atestado vai anexado à release, como bundle Sigstore e como envelope in-toto (.intoto.jsonl). Para conferir: gh attestation verify oci://ghcr.io/isdiegoalves/anzol:<versão> -R isdiegoalves/anzol
 name: imagem
 
 on:
@@ -70,4 +70,6 @@ jobs:
           ATESTADO: ${{ steps.atestado.outputs.bundle-path }}
         run: |
           cp "$ATESTADO" "anzol-$TAG.sigstore.json"
-          gh release create "$TAG" --verify-tag --title "$(cat titulo.txt)" --notes-file notas.md "anzol-$TAG.sigstore.json"
+          jq -c .dsseEnvelope "$ATESTADO" > "anzol-$TAG.intoto.jsonl"
+          gh release create "$TAG" --verify-tag --title "$(cat titulo.txt)" --notes-file notas.md \
+            "anzol-$TAG.sigstore.json" "anzol-$TAG.intoto.jsonl"
