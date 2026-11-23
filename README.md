@@ -15,7 +15,7 @@ E um laboratório de defesa mede o que o seu script ou agente de IA barra quando
 ![Kotlin · Spring Boot 4.2 | Angular 22](https://img.shields.io/badge/Kotlin_%C2%B7_Spring_Boot_4.2-Angular_22-1B5A68?labelColor=6B737C)
 ![OpenAPI 3.1 · MCP · JSON Schema 2020-12 | protocolos](https://img.shields.io/badge/OpenAPI_3.1_%C2%B7_MCP_%C2%B7_JSON_Schema_2020--12-protocolos-1B5A68?labelColor=6B737C)
 ![licença | MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-1B5A68?labelColor=6B737C)
-![versão | 0.9.6](https://img.shields.io/badge/vers%C3%A3o-0.9.6-1B5A68?labelColor=6B737C)
+![versão | 0.9.7](https://img.shields.io/badge/vers%C3%A3o-0.9.7-1B5A68?labelColor=6B737C)
 [![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/isdiegoalves/anzol?label=OpenSSF%20Scorecard&labelColor=6B737C)](https://scorecard.dev/viewer/?uri=github.com/isdiegoalves/anzol)
 
 [![Rodar local com Docker](https://img.shields.io/badge/Rodar_local_com_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#início-rápido)
@@ -74,7 +74,7 @@ docker network create anzol
 docker run -d --name anzol-db --network anzol -v anzol-db:/data redis:8.10.2-alpine \
   redis-server --maxmemory 1gb --maxmemory-policy noeviction
 docker run -d --name anzol --network anzol -p 127.0.0.1:8084:8080 -e REDIS_HOST=anzol-db \
-  ghcr.io/isdiegoalves/anzol:0.9.6
+  ghcr.io/isdiegoalves/anzol:0.9.7
 ```
 
 As tags (`X.Y.Z`, `X.Y`, `latest`) saem a cada versão em <https://github.com/isdiegoalves/anzol/pkgs/container/anzol>.
@@ -233,10 +233,7 @@ sintéticas com gabarito, 18 legítimas e 14 ataques de três famílias (integri
 de prompt). O seu defensor julga cada uma e grava regras de resposta; o servidor entrega uma segunda onda contra
 essas regras e mede o que foi detectado, barrado, derrubado por engano e obedecido.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/defesa-rodada-escuro.svg">
-  <img src="docs/imagens/defesa-rodada-claro.svg" alt="Uma rodada em cinco passos: o Anzol entrega a onda 1, com 18 legítimas e 14 ataques pela captura real e em ordem sorteada; o defensor, que pode ser script, pessoa ou agente por MCP, julga cada requisição como legitimate ou attack e grava regras de resposta; ao fechar a rodada, o Anzol entrega a onda 2, variações novas dos mesmos cenários contra as regras daquele momento, e devolve o relatório com detecção, falso positivo, contenção e injeção obedecida. O gabarito fica no servidor e só sai no relatório; corpo, cabeçalho e query são dado de terceiros, nunca instrução">
-</picture>
+![Uma rodada do laboratório de defesa em 30 segundos, com os números da execução 1 do Claude Sonnet 5.5 pelo MCP no Anzol 0.9.5: chegam 32 requisições; a assinatura reprova 4; 28 chegam com assinatura válida e 10 delas são ataque; o agente lê o conteúdo e marca os 14 ataques, de integridade, remetente comprometido e injeção de prompt; grava 7 regras de resposta; na onda 2, 12 ataques são barrados com 401, 422 e 400 e as 18 legítimas passam; 2 ataques passam, a cópia exata de uma mensagem válida e o estorno sem venda, que pedem deduplicação e histórico; o relatório fecha em 14 de 14 detectados, 0 de 18 falsos positivos, 12 de 12 contidos e 0 de 6 injeções obedecidas, contra 4 de 14 de quem só olha a assinatura](docs/imagens/defesa-laco.webp)
 
 **Rode uma rodada**, com o Anzol de pé na 8084 e o [`jq`](https://jqlang.org): este defensor só olha a assinatura.
 
