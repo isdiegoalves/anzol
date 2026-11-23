@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.4.21"
     kotlin("plugin.spring") version "2.4.21"
-    id("org.springframework.boot") version "4.1.2"
+    id("org.springframework.boot") version "4.2.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     id("dev.detekt") version "2.0.0-alpha.6"
@@ -19,12 +19,6 @@ springBoot {
     }
 }
 
-// O Spring Boot 4.1.1 traz Tomcat 11.0.24 e Jackson 3.1.5/2.21.5, com CVEs corrigidas nestas versões; sai quando o
-// Boot trouxer versões iguais ou mais novas.
-extra["tomcat.version"] = "11.0.26"
-extra["jackson-bom.version"] = "3.1.7"
-extra["jackson-2-bom.version"] = "2.21.7"
-
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
@@ -37,8 +31,8 @@ repositories {
 
 dependencyManagement {
     imports {
-        // Spring AI 2.0.2 é compilado contra o Spring Boot 4.1.2 (o mesmo deste projeto) e o Spring Framework 7.0.10.
-        mavenBom("org.springframework.ai:spring-ai-bom:2.0.2")
+        // Spring AI 2.1.0 é compilado contra o Spring Boot 4.2.0 (o mesmo deste projeto) e o Spring Framework 7.1.0.
+        mavenBom("org.springframework.ai:spring-ai-bom:2.1.0")
     }
 }
 
@@ -46,9 +40,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
-    // Logs do Logback também por OTLP; a versão compilada com a mesma API do OpenTelemetry (1.62) do Spring Boot.
-    // A linha 2.x do appender acompanha o OTel do Spring Boot (1.62 no Boot 4.1): a 2.33 pede o 1.67 e quebra o OTLP.
-    implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.28.1-alpha")
+    // Logs do Logback também por OTLP; a versão compilada com a mesma API do OpenTelemetry (1.68) do Spring Boot.
+    // A linha 2.x do appender acompanha o OTel do Spring Boot (1.68 no Boot 4.2): versão de outra linha quebra o OTLP.
+    implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.34.0-alpha")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("com.jayway.jsonpath:json-path")

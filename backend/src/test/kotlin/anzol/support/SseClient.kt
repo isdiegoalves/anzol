@@ -46,7 +46,7 @@ class SseClient(
                 when {
                     line.isEmpty() && data.isNotEmpty() -> events.add(SseEvent(name, data.toString())).also { data.clear() }
                     line.startsWith("event:") -> name = line.removePrefix("event:").trim()
-                    line.startsWith("data:") -> data.append(line.removePrefix("data:"))
+                    line.startsWith("data:") -> data.append(line.removePrefix("data:").removePrefix(" "))
                 }
             }
         }
