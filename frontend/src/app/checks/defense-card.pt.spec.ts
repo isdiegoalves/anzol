@@ -145,15 +145,13 @@ describe('Dado o laboratório de defesa com a tela em pt-BR', () => {
       }),
     );
     const { container, http } = await renderCard(DefenseCard, LABORATORIO);
-    http
-      .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
-      .flush(
-        {
-          success: false,
-          error: { message: 'This round is still open; finish it to get the report', id: null },
-        },
-        { status: 409, statusText: 'Conflict' },
-      );
+    http.expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`).flush(
+      {
+        success: false,
+        error: { message: 'This round is still open; finish it to get the report', id: null },
+      },
+      { status: 409, statusText: 'Conflict' },
+    );
     const onda = await vi.waitFor(() => http.expectOne((sent) => sent.params.get('after') === '0'));
     onda.flush(
       requestPage([

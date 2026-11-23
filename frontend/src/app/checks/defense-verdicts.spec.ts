@@ -65,15 +65,13 @@ async function openWithRound(stored: Record<string, unknown> = {}) {
   );
   const rendered = await renderCard(DefenseCard, LABORATORIO);
   const { http } = rendered;
-  http
-    .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
-    .flush(
-      {
-        success: false,
-        error: { message: 'This round is still open; finish it to get the report', id: null },
-      },
-      { status: 409, statusText: 'Conflict' },
-    );
+  http.expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`).flush(
+    {
+      success: false,
+      error: { message: 'This round is still open; finish it to get the report', id: null },
+    },
+    { status: 409, statusText: 'Conflict' },
+  );
   await answerWave(http);
   await vi.waitFor(() => within(card()).getByRole('table', { name: 'Wave 1 requests' }));
   return rendered;
@@ -217,15 +215,13 @@ describe('Dado a rodada aberta no laboratório de defesa, com veredictos à mão
   it('deve explicar Quando a rodada foi aberta em outro lugar e a tela não conhece a onda', async () => {
     localStorage.setItem(CHAVE, JSON.stringify({ round_id: RODADA, requests: [] }));
     const { http } = await renderCard(DefenseCard, LABORATORIO);
-    http
-      .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
-      .flush(
-        {
-          success: false,
-          error: { message: 'This round is still open; finish it to get the report', id: null },
-        },
-        { status: 409, statusText: 'Conflict' },
-      );
+    http.expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`).flush(
+      {
+        success: false,
+        error: { message: 'This round is still open; finish it to get the report', id: null },
+      },
+      { status: 409, statusText: 'Conflict' },
+    );
 
     await vi.waitFor(() =>
       expect(card().textContent).toContain(

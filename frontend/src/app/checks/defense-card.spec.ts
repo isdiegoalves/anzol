@@ -323,15 +323,13 @@ describe('Dado o laboratório de defesa em Checks', () => {
 
     it('deve reconhecer a rodada aberta ao recarregar e fechá-la, mostrando o relatório', async () => {
       const { container, http } = await renderCard(DefenseCard, LABORATORIO);
-      http
-        .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
-        .flush(
-          {
-            success: false,
-            error: { message: 'This round is still open; finish it to get the report', id: null },
-          },
-          { status: 409, statusText: 'Conflict' },
-        );
+      http.expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`).flush(
+        {
+          success: false,
+          error: { message: 'This round is still open; finish it to get the report', id: null },
+        },
+        { status: 409, statusText: 'Conflict' },
+      );
       await vi.waitFor(() => expect(finish()).toBeTruthy());
 
       await userEvent.click(finish());
@@ -396,15 +394,13 @@ describe('Dado o laboratório de defesa em Checks', () => {
 
     it('deve conferir de novo a rodada e mostrar o relatório Quando o agente a fechou', async () => {
       const { http } = await renderCard(DefenseCard, LABORATORIO);
-      http
-        .expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`)
-        .flush(
-          {
-            success: false,
-            error: { message: 'This round is still open; finish it to get the report', id: null },
-          },
-          { status: 409, statusText: 'Conflict' },
-        );
+      http.expectOne(`/token/${TOKEN_ID}/defense-lab/rounds/${RODADA}`).flush(
+        {
+          success: false,
+          error: { message: 'This round is still open; finish it to get the report', id: null },
+        },
+        { status: 409, statusText: 'Conflict' },
+      );
       await vi.waitFor(() => expect(finish()).toBeTruthy());
 
       await userEvent.click(within(card()).getByRole('button', { name: 'Check the round' }));
