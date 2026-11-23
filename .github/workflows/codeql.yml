@@ -48,11 +48,13 @@ jobs:
           java-version: "25"
       # Sem daemon e com o compilador do Kotlin no próprio processo: um daemon que já estivesse no ar ficaria fora da
       # observação da CodeQL e o Kotlin sairia vazio do banco.
+      # O extrator da CodeQL roda dentro desse processo e não cabe nos 2 GB do gradle.properties.
       - if: matrix.language == 'java-kotlin'
         name: Compilação do backend e do CLI
         run: |
           for projeto in backend cli; do
-            (cd "$projeto" && ./gradlew --no-daemon -Dkotlin.compiler.execution.strategy=in-process compileKotlin)
+            (cd "$projeto" && ./gradlew --no-daemon -Dorg.gradle.jvmargs="-Xmx8g -XX:MaxMetaspaceSize=1g" \
+              -Dkotlin.compiler.execution.strategy=in-process compileKotlin)
           done
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
