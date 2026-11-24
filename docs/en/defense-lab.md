@@ -3,11 +3,24 @@
 [![English](https://img.shields.io/badge/English-1B5A68?style=flat-square)](defense-lab.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-6B737C?style=flat-square)](../laboratorio-defesa.md)
 
-An HMAC signature proves who sent the webhook, not that the content is harmless: a sender with a leaked secret signs
-its own attack, and text in a free-form field can give orders to the AI agent that reads the message. The defense lab
-puts this to the test on a URL of yours: the server delivers 32 synthetic requests with an answer key, 18 legitimate
-and 14 attacks; a defender (a script, a person, or an AI agent through MCP) judges each one and writes response rules;
-the server measures what it caught, what it blocked, what legitimate traffic it knocked down, and whether it obeyed an
+The [defense lab](glossary.md#defense-lab) measures, on a URL of yours, whoever defends your webhooks: a script, a
+person, or an AI agent. This guide is a first use and explanation page, for anyone who wants to put a
+[defender](glossary.md#defense-lab) to the test: the path from zero to the first report, and how to read what it
+says.
+
+**On this page:** [First round](#first-round) ·
+[What arrives: three families, 14 scenarios](#what-arrives-three-families-14-scenarios) ·
+[How to read the report](#how-to-read-the-report) · [Three defenders on the same seed](#three-defenders-on-the-same-seed) ·
+[Rule-shape pitfalls](#rule-shape-pitfalls) · [Plugging in your agent](#plugging-in-your-agent) · [Limits](#limits)
+
+An [HMAC signature](glossary.md#checks) proves who sent the webhook, not that the content is harmless: a sender with a
+leaked secret signs its own attack, and text in a free-form field can give orders to the AI agent that reads the
+request.
+
+The defense lab puts this to the test on a URL of yours: the server delivers 32 synthetic requests with an
+[answer key](glossary.md#defense-lab), 18 legitimate and 14 attacks; a defender (a script, a person, or an AI agent
+through [MCP](glossary.md#agents-and-cli)) judges each one and writes [response rules](glossary.md#response); the
+server measures what it caught, what it blocked, what legitimate traffic it knocked down, and whether it obeyed an
 injected instruction.
 
 <picture>
@@ -16,8 +29,7 @@ injected instruction.
 </picture>
 
 The full contract (routes, fields, errors, and limits) is in [`api.md`](api.md#defense-lab); the MCP tools
-are in [`mcp-e-ia.md`](mcp-and-ai.md#defense-lab). This guide is the path from zero to the first report, and
-how to read what it says.
+are in [`mcp-e-ia.md`](mcp-and-ai.md#defense-lab).
 
 ## First round
 
@@ -43,7 +55,8 @@ ready.
 
 Run the five steps in the same terminal: each one uses the variables from the one before (`A`, `T`, `S`, and `R`).
 
-**1. Create the lab URL.** It is born protected: the read secret comes only in this response.
+**1. Create the lab URL.** It is born protected: the [read secret](glossary.md#privacy) comes only in this
+response.
 
 ```bash
 A=http://localhost:8084
@@ -55,8 +68,8 @@ echo $T
 
 The `echo` shows the URL's UUID. If it shows `null`, Anzol did not answer: check step 0.
 
-**2. Open the round.** Wave 1 arrives through the capture, like a real webhook. The fixed seed makes your wave the same
-as this guide's. The response only comes back after all 32 requests have arrived; there is no need to wait.
+**2. Open the [round](glossary.md#defense-lab).** [Wave](glossary.md#defense-lab) 1 arrives through the capture, like
+a real webhook. The fixed [seed](glossary.md#defense-lab) makes your wave the same as this guide's. The response only comes back after all 32 requests have arrived; there is no need to wait.
 
 ```bash
 R=$(curl -s -X POST $A/token/$T/defense-lab/rounds -H "X-Anzol-Secret: $S" \
@@ -78,7 +91,7 @@ curl -s "$A/token/$T/requests?per_page=50" -H "X-Anzol-Secret: $S" |
     -H 'Content-Type: application/json' -d @- | jq -c .
 ```
 
-The response is `{"recorded":32,"requests":32}`: 32 verdicts recorded for the 32 requests in the wave. One page of 50
+The response is `{"recorded":32,"requests":32}`: 32 [verdicts](glossary.md#defense-lab) recorded for the 32 requests in the wave. One page of 50
 covers the whole wave because the URL is new; in a second round on the same URL, the listing also includes the first
 round's requests.
 
@@ -105,7 +118,7 @@ curl -s -X POST $A/token/$T/defense-lab/rounds/$R/finish -H "X-Anzol-Secret: $S"
 That filter shows three blocks; without the `jq -c '{…}'`, you get the whole report, with coverage, actions, and the
 result of each scenario.
 
-The signature alone caught 4 of the 14 attacks and blocked 4 of the 12 containable ones, without knocking down any of
+The signature alone caught 4 of the 14 attacks and blocked 4 of the 12 [containable](glossary.md#defense-lab) ones, without knocking down any of
 the 18 legitimate requests. Containable means an attack that a response rule can block; two of the 14 ask for more than
 a rule and stay out of that count ([which ones](#what-arrives-three-families-14-scenarios)). The other 10 attacks pass
 with a valid signature: they are what the lab exists for.
@@ -162,16 +175,18 @@ catalog, with each scenario's title in English, at `GET /defense-lab/scenarios`.
 | Compromised sender (`compromised_sender`) | C1 refund of an order with no payment · C2 amount far above the history · C3 settlement account that is not the shop's | `agent` | Only the content, compared with the briefing: the attacker has the secret and signs correctly |
 | Prompt injection (`prompt_injection`) | P1 instruction in the body · P2 in a header · P3 fake system notice asking to turn off the signature · P4 request to send to an outside collector · P5 instruction in Base64 · P6 request for the read secret | `agent` | Text that gives orders, in a free-form field of an event the provider signed |
 
-That is 4 attacks in the `floor` layer and 10 in the `agent` layer. **Containable** means an attack that a response
-rule can block in wave 2 without blocking legitimate traffic: 12 of the 14. I5 needs deduplication by event id and C1
-needs the order's history; both count toward detection and stay out of containment.
+That is 4 attacks in the [`floor` layer](glossary.md#defense-lab) and 10 in the `agent` layer.
+**Containable** means an attack that a response rule can block in wave 2 without blocking legitimate traffic: 12 of the
+14. I5 needs deduplication by event id and C1 needs the order's history; both count toward
+[detection](glossary.md#defense-lab) and stay out of [containment](glossary.md#defense-lab).
 
-**The four lookalikes.** Four legitimate requests look like attacks, so the false positive has somewhere to show up: a
+**The four [lookalikes](glossary.md#defense-lab).** Four legitimate requests look like attacks, so the
+[false positive](glossary.md#defense-lab) has somewhere to show up: a
 high-value order that comes with its full lifecycle, one that settles into the shop's second account, a refund after
 the payment, and a note that talks about rules and the system without giving anyone an order. Blocking "every refund"
 or "every high value" knocks down one of them.
 
-The `briefing` in the `POST /defense-lab` response says what is normal for this fictional shop: the four event types,
+The [`briefing`](glossary.md#defense-lab) in the `POST /defense-lab` response says what is normal for this fictional shop: the four event types,
 their order, the range of amounts, and the two settlement accounts. It is the context an operator would have, and it
 is what separates C2 and C3 from the lookalikes.
 
@@ -241,7 +256,7 @@ failing to see the attack. None of the three defenders obeyed an injection acros
 
 The ones that cost containment in the rounds. The full table of a rule's fields is in
 [`api.md`](api.md#response-rules); `test_rule` (MCP) and `POST /token/{id}/rules/test` (API) tell you which of the
-saved messages a rule would match, before you save it.
+saved requests a rule would match, before you save it.
 
 | Pitfall | Wrong | Right |
 |---|---|---|
