@@ -24,7 +24,7 @@ And a defense lab measures what your script or AI agent blocks when the attack a
 [![Run locally with Docker](https://img.shields.io/badge/Run_locally_with_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#quick-start)
 [![Run a defense round](https://img.shields.io/badge/Run_a_defense_round-7A3E62?style=for-the-badge)](#defense-lab-the-signature-checks-out-and-it-is-still-an-attack)
 
-[API](docs/en/api.md) · [CLI](docs/en/cli.md) · [MCP and AI](docs/en/mcp-and-ai.md) · [Defense lab](docs/en/defense-lab.md)
+[API](docs/en/api.md) · [CLI](docs/en/cli.md) · [MCP and AI](docs/en/mcp-and-ai.md) · [Defense lab](docs/en/defense-lab.md) · [All docs](docs/en/README.md) · [Glossary](docs/en/glossary.md)
 
 </div>
 
@@ -34,15 +34,14 @@ And a defense lab measures what your script or AI agent blocks when the attack a
 
 [Watch with sound (MP4, 1080p)](https://github.com/isdiegoalves/anzol/releases/download/v0.9.7/anzol-apresentacao-1080p.mp4) · [vertical, for phones](https://github.com/isdiegoalves/anzol/releases/download/v0.9.7/anzol-apresentacao-vertical.mp4)
 
-![Traffic recorded by a local Anzol 0.7.0, in 32 seconds: 22 requests show up in the order and at the pace they arrived, with the event type from GitHub, Shopify and Slack, a rule that fails twice before the 200, the signature that stops matching when the body changes, the schema that points at the wrong field and the Insights tab summing it all up](docs/imagens/dados-reais.webp)
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/entrada-escuro.webp">
-  <img src="docs/imagens/entrada-claro.webp" alt="Anzol Inbox: on the left, the request list with the method, the status answered and the signature and schema badges in color; on the right, the detail of a POST with a valid signature, a valid schema, the default response with the closest rule and the formatted JSON body">
-</picture>
-
 The video and the screenshots were recorded with the web UI in Portuguese. The app ships in English and Brazilian
 Portuguese: it follows the browser language, and Settings switches it.
+
+**On this page:** [Quick start](#quick-start) · [How it works](#how-it-works) · [What it does](#what-it-does) ·
+[Signature and decryption in plain English](#signature-and-decryption-in-plain-english) ·
+[Defense lab: “the signature checks out, and it is still an attack”](#defense-lab-the-signature-checks-out-and-it-is-still-an-attack) ·
+[CLI, API and MCP](#cli-api-and-mcp) · [Operating and developing](#operating-and-developing) · [Support](#support) ·
+[License](#license)
 
 ## Quick start
 
@@ -65,11 +64,20 @@ The request shows up in the Inbox with method, path, headers and body. From ther
 answers; **Checks** turns on the signature, the schema, decryption and the read secret; **Outbound** replays to your
 app; **Insights** sums it up.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/entrada-escuro.webp">
+  <img src="docs/imagens/entrada-claro.webp" alt="Anzol Inbox: on the left, the request list with the method, the status answered and the signature and schema badges in color; on the right, the detail of a POST with a valid signature, a valid schema, the default response with the closest rule and the formatted JSON body">
+</picture>
+
+![Traffic recorded by a local Anzol 0.7.0, in 32 seconds: 22 requests show up in the order and at the pace they arrived, with the event type from GitHub, Shopify and Slack, a rule that fails twice before the 200, the signature that stops matching when the body changes, the schema that points at the wrong field and the Insights tab summing it all up](docs/imagens/dados-reais.webp)
+
 The data lives in the `anzol_redis-data` volume and survives `docker compose down` (only `down -v` erases it). The
 HMAC secrets, the private encryption keys and the decrypted values are stored there in the clear: treat the volume and
-its backup as a secret. The compose file runs the app defaults and publishes the port on `127.0.0.1` only: MCP, local
-AI and the server's outbound access to the local network (the **Outbound** replay to an app on `localhost`) come
-turned off. To turn them on, or to publish the app, see [Configuration](docs/en/operations.md#configuration).
+its backup as a secret.
+
+The compose file runs the app defaults and publishes the port on `127.0.0.1` only: MCP, local AI and the server's
+outbound access to the local network (the **Outbound** replay to an app on `localhost`) come turned off. To turn them
+on, or to publish the app, see [Configuration](docs/en/operations.md#configuration).
 
 ### Prebuilt image (shortcut)
 
@@ -142,6 +150,7 @@ received and compares: equal, **Signature valid**; different, **Signature invali
 
 The sender signs one attribute of the body with its private key and encrypts it to your URL's public key: only the
 URL's private key, which stays on the Anzol server, opens it. The rest of the body, the envelope, travels readable.
+
 Anzol decrypts on arrival, checks the sender's signature with the public key you pasted and checks that what is signed
 inside matches the envelope. If it all works, **Decrypted**, and the value shows up in the Decrypted tab for whoever
 has the URL's read secret.
@@ -155,11 +164,13 @@ has the URL's read secret.
   the private one stays on the server). The sender generates its signing keys (the private one stays with the sender;
   the public one you paste into Trusted signers). If the URL verifies an HMAC signature, it is checked before
   decryption.
-- **Where to start:** Checks › Decryption › “Create a lab URL” and, in it, “Run scenarios”: the server creates a
-  ready-made URL, builds 27 messages (the ones that decrypt and the ones that must be refused) and shows the result of
-  each one, with a link to the request. Then, on a URL of your own: generate the encryption key, paste the sender's
-  public key, say which attribute arrives encrypted and the envelope bindings, and turn on a read secret in Checks ›
-  Privacy (decryption requires one).
+- **Where to start:**
+  - Checks › Decryption › “Create a lab URL” and, in it, “Run scenarios”: the server creates a ready-made URL, builds
+    27 messages (the ones that decrypt and the ones that must be refused) and shows the result of each one, with a
+    link to the request.
+  - Then, on a URL of your own: generate the encryption key, paste the sender's public key, say which attribute
+    arrives encrypted and the envelope bindings, and turn on a read secret in Checks › Privacy (decryption requires
+    one).
 - **What is stored where:** the decrypted value is recorded in the clear in Redis; the read secret protects whoever
   reads through the web UI and the API, not the storage. Read-only links, live events and MCP never carry the value.
 - **Details:** the accepted format (an `ECDH-ES`/`A256GCM` JWE with an `ES256` JWS inside), the bindings, the order of
@@ -236,10 +247,12 @@ has the URL's read secret.
 ## Defense lab: “the signature checks out, and it is still an attack”
 
 The signature stops whoever does not have the secret. It does not stop a compromised sender, who signs correctly, nor
-a text in a free-form field that gives orders to the AI agent reading the webhook. The lab delivers to a URL of yours
-32 synthetic requests with an answer key, 18 legitimate and 14 attacks from three families (integrity, compromised
-sender and prompt injection). Your defender judges each one and writes response rules; the server delivers a second
-wave against those rules and measures what was detected, blocked, taken down by mistake and obeyed.
+a text in a free-form field that gives orders to the AI agent reading the webhook.
+
+The lab delivers to a URL of yours 32 synthetic requests with an answer key, 18 legitimate and 14 attacks from three
+families (integrity, compromised sender and prompt injection). Your defender judges each one and writes response
+rules; the server delivers a second wave against those rules and measures what was detected, blocked, taken down by
+mistake and obeyed.
 
 ![One defense lab round in 30 seconds, with the numbers from run 1 of Claude Sonnet 5.5 over MCP on Anzol 0.9.5: 32 requests arrive; the signature rejects 4; 28 arrive with a valid signature and 10 of them are attacks; the agent reads the content and flags the 14 attacks, of integrity, compromised sender and prompt injection; it writes 7 response rules; in wave 2, 12 attacks are blocked with 401, 422 and 400 and the 18 legitimate requests pass; 2 attacks pass, the exact copy of a valid message and the refund with no sale, which call for deduplication and history; the report closes at 14 of 14 detected, 0 of 18 false positives, 12 of 12 contained and 0 of 6 injections obeyed, against 4 of 14 for a defender that only looks at the signature](docs/imagens/defesa-laco-en.webp)
 

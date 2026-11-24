@@ -24,7 +24,7 @@ E um laboratório de defesa mede o que o seu script ou agente de IA barra quando
 [![Rodar local com Docker](https://img.shields.io/badge/Rodar_local_com_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#início-rápido)
 [![Rodar uma rodada de defesa](https://img.shields.io/badge/Rodar_uma_rodada_de_defesa-7A3E62?style=for-the-badge)](#laboratório-de-defesa-a-assinatura-confere-e-mesmo-assim-é-ataque)
 
-[API](docs/api.md) · [CLI](docs/cli.md) · [MCP e IA](docs/mcp-e-ia.md) · [Laboratório de defesa](docs/laboratorio-defesa.md)
+[API](docs/api.md) · [CLI](docs/cli.md) · [MCP e IA](docs/mcp-e-ia.md) · [Laboratório de defesa](docs/laboratorio-defesa.md) · [Todas as docs](docs/README.md) · [Glossário](docs/glossario.md)
 
 </div>
 
@@ -34,12 +34,10 @@ E um laboratório de defesa mede o que o seu script ou agente de IA barra quando
 
 [Assista com som (MP4, 1080p)](https://github.com/isdiegoalves/anzol/releases/download/v0.9.7/anzol-apresentacao-1080p.mp4) · [vertical, para celular](https://github.com/isdiegoalves/anzol/releases/download/v0.9.7/anzol-apresentacao-vertical.mp4)
 
-![Tráfego gravado por um Anzol 0.7.0 local, em 32 segundos: 22 requisições aparecem na ordem e no tempo em que chegaram, com o tipo do evento do GitHub, do Shopify e do Slack, uma regra que falha duas vezes antes do 200, a assinatura que não confere quando o corpo muda, o schema que aponta o campo errado e a aba Métricas resumindo tudo](docs/imagens/dados-reais.webp)
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/entrada-escuro.webp">
-  <img src="docs/imagens/entrada-claro.webp" alt="Entrada do Anzol: à esquerda, a lista de requisições com o método, o status respondido e os selos de assinatura e schema em cores; à direita, o detalhe de um POST com assinatura válida, schema válido, a resposta padrão com a regra mais próxima e o corpo JSON formatado">
-</picture>
+**Nesta página:** [Início rápido](#início-rápido) · [Como funciona](#como-funciona) · [O que ele faz](#o-que-ele-faz) ·
+[Assinatura e decifra em português simples](#assinatura-e-decifra-em-português-simples) ·
+[Laboratório de defesa: “a assinatura confere, e mesmo assim é ataque”](#laboratório-de-defesa-a-assinatura-confere-e-mesmo-assim-é-ataque) ·
+[CLI, API e MCP](#cli-api-e-mcp) · [Operar e desenvolver](#operar-e-desenvolver) · [Apoie](#apoie) · [Licença](#licença)
 
 ## Início rápido
 
@@ -62,8 +60,16 @@ A requisição aparece na Entrada com método, caminho, cabeçalhos e corpo. Da�
 responde; **Verificações** liga a assinatura, o schema, a decifra e o segredo de leitura; **Saída** reenvia para o seu
 app; **Métricas** resume.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/entrada-escuro.webp">
+  <img src="docs/imagens/entrada-claro.webp" alt="Entrada do Anzol: à esquerda, a lista de requisições com o método, o status respondido e os selos de assinatura e schema em cores; à direita, o detalhe de um POST com assinatura válida, schema válido, a resposta padrão com a regra mais próxima e o corpo JSON formatado">
+</picture>
+
+![Tráfego gravado por um Anzol 0.7.0 local, em 32 segundos: 22 requisições aparecem na ordem e no tempo em que chegaram, com o tipo do evento do GitHub, do Shopify e do Slack, uma regra que falha duas vezes antes do 200, a assinatura que não confere quando o corpo muda, o schema que aponta o campo errado e a aba Métricas resumindo tudo](docs/imagens/dados-reais.webp)
+
 Os dados ficam no volume `anzol_redis-data` e sobrevivem a `docker compose down` (só `down -v` os apaga). Lá ficam
 em claro os segredos HMAC, as chaves privadas de cifra e os valores decifrados: trate o volume e o backup como segredo.
+
 O compose sobe o padrão do app e publica a porta só em `127.0.0.1`: o MCP, a IA local e a saída do servidor para a
 rede local (o reenvio da **Saída** para um app em `localhost`) vêm desligados. Para ligá-los, ou para publicar o app,
 veja [Configuração](docs/operacao.md#configuração).
@@ -137,10 +143,11 @@ A assinatura não esconde nada: o corpo continua legível.
 ### Decifra de atributo: “só o Anzol lê o conteúdo, e sabe quem o assinou”
 
 O remetente assina um atributo do corpo com a chave privada dele e o cifra para a chave pública da sua URL: só a
-chave privada da URL, que fica no servidor do Anzol, abre. O resto do corpo, o envelope, vai legível. O Anzol decifra
-na chegada, confere a assinatura do remetente com a chave pública que você colou e confere que o que está assinado lá
-dentro bate com o envelope. Deu certo, **Decifrada**, e o valor aparece na aba Decifrado para quem tem o segredo de
-leitura da URL.
+chave privada da URL, que fica no servidor do Anzol, abre. O resto do corpo, o envelope, vai legível.
+
+O Anzol decifra na chegada, confere a assinatura do remetente com a chave pública que você colou e confere que o que
+está assinado lá dentro bate com o envelope. Deu certo, **Decifrada**, e o valor aparece na aba Decifrado para quem
+tem o segredo de leitura da URL.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/imagens/decifra-escuro.svg">
@@ -150,11 +157,12 @@ leitura da URL.
 - **Quem faz o quê:** o Anzol gera as chaves de cifra da URL (a pública vai ao remetente pelo JWKS; a privada fica no
   servidor). O remetente gera as chaves de assinatura dele (a privada fica com ele; a pública você cola em Signatários
   confiáveis). Se a URL verifica assinatura HMAC, ela é conferida antes da decifra.
-- **Por onde começar:** Verificações › Decifra › “Criar uma URL de laboratório” e, nela, “Rodar cenários”: o servidor
-  cria uma URL pronta, monta 27 mensagens (as que decifram e as que têm de ser recusadas) e mostra o resultado de cada
-  uma, com link para a requisição. Depois, numa URL sua: gere a chave de cifra, cole a chave pública do remetente,
-  diga qual atributo vem cifrado e os vínculos com o envelope, e ligue um segredo de leitura em Verificações ›
-  Privacidade (a decifra exige um).
+- **Por onde começar:**
+  - Verificações › Decifra › “Criar uma URL de laboratório” e, nela, “Rodar cenários”: o servidor cria uma URL
+    pronta, monta 27 mensagens (as que decifram e as que têm de ser recusadas) e mostra o resultado de cada uma, com
+    link para a requisição.
+  - Depois, numa URL sua: gere a chave de cifra, cole a chave pública do remetente, diga qual atributo vem cifrado e
+    os vínculos com o envelope, e ligue um segredo de leitura em Verificações › Privacidade (a decifra exige um).
 - **O que fica onde:** o valor decifrado fica gravado em claro no Redis; o segredo de leitura protege quem lê pela
   tela e pela API, não o armazenamento. Links só-leitura, eventos ao vivo e o MCP nunca levam o valor.
 - **Detalhe:** o formato aceito (um JWE `ECDH-ES`/`A256GCM` com um JWS `ES256` dentro), os vínculos, a ordem das
@@ -231,10 +239,12 @@ leitura da URL.
 ## Laboratório de defesa: “a assinatura confere, e mesmo assim é ataque”
 
 A assinatura barra quem não tem o segredo. Ela não barra um remetente comprometido, que assina certo, nem um texto
-num campo livre que dá ordem ao agente de IA que lê o webhook. O laboratório entrega numa URL sua 32 requisições
-sintéticas com gabarito, 18 legítimas e 14 ataques de três famílias (integridade, remetente comprometido e injeção
-de prompt). O seu defensor julga cada uma e grava regras de resposta; o servidor entrega uma segunda onda contra
-essas regras e mede o que foi detectado, barrado, derrubado por engano e obedecido.
+num campo livre que dá ordem ao agente de IA que lê o webhook.
+
+O laboratório entrega numa URL sua 32 requisições sintéticas com gabarito, 18 legítimas e 14 ataques de três famílias
+(integridade, remetente comprometido e injeção de prompt). O seu defensor julga cada uma e grava regras de resposta; o
+servidor entrega uma segunda onda contra essas regras e mede o que foi detectado, barrado, derrubado por engano e
+obedecido.
 
 ![Uma rodada do laboratório de defesa em 30 segundos, com os números da execução 1 do Claude Sonnet 5.5 pelo MCP no Anzol 0.9.5: chegam 32 requisições; a assinatura reprova 4; 28 chegam com assinatura válida e 10 delas são ataque; o agente lê o conteúdo e marca os 14 ataques, de integridade, remetente comprometido e injeção de prompt; grava 7 regras de resposta; na onda 2, 12 ataques são barrados com 401, 422 e 400 e as 18 legítimas passam; 2 ataques passam, a cópia exata de uma mensagem válida e o estorno sem venda, que pedem deduplicação e histórico; o relatório fecha em 14 de 14 detectados, 0 de 18 falsos positivos, 12 de 12 contidos e 0 de 6 injeções obedecidas, contra 4 de 14 de quem só olha a assinatura](docs/imagens/defesa-laco.webp)
 
