@@ -3,12 +3,15 @@
 [![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/cli.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](cli.md)
 
-Entrega os webhooks que chegam na URL direto no app que você está desenvolvendo, como o
-`stripe listen`: sem aba aberta e sem CORS.
-Também baixa e sobe as [regras de resposta](api.md#regras-de-resposta) da URL como arquivo JSON.
-Com o `send`, faz o papel do provedor: dispara webhooks assinados, com retentativas, para o seu app.
-Com o `wait-for`, um teste automatizado espera o webhook chegar, sem `sleep`; com o `test`, o teste de CI inteiro
-cabe num comando.
+Referência da CLI `anzol`, para quem desenvolve o app que recebe webhooks. Ela entrega no seu app o que chega na
+[URL](glossario.md#o-mesmo-objeto-quatro-nomes), baixa e sobe as [regras de resposta](api.md#regras-de-resposta) e,
+com o `send`, faz o papel do provedor. Com o `wait-for`, um teste automatizado espera o webhook sem `sleep`; com o
+`test`, o teste de CI inteiro cabe num comando.
+
+**Nesta página:** [Instalar](#instalar) · [`listen`](#anzol-listen) · [`replay`](#anzol-replay) ·
+[Falhas na entrega](#falhas-na-entrega-listen-e-replay) · [`rules`](#anzol-rules-pull-e-anzol-rules-push) ·
+[`send`](#anzol-send) · [`wait-for`](#anzol-wait-for) · [`cursor`](#anzol-cursor) · [`test`](#anzol-test) · [Servidor](#servidor) ·
+[O que é reenviado](#o-que-é-reenviado) · [Limitações](#limitações)
 
 ## Instalar
 
@@ -21,10 +24,20 @@ cd cli && ./gradlew installDist
 
 ## `anzol listen`
 
+Entrega os webhooks que chegam na URL direto no app que você está desenvolvendo, como o `stripe listen`: sem aba
+aberta e sem CORS. Cada [requisição](glossario.md#captura) gravada é reenviada para `<forward>` + o caminho depois do
+token + a query, uma de cada vez, na ordem em que o servidor as gravou ([`seq`](glossario.md#captura)).
+
+Só as requisições que chegam depois que o `listen` começa são reenviadas.
+
+### Exemplo
+
 ```bash
 anzol listen --forward http://localhost:3000             # cria uma URL nova e a mostra
 anzol listen --forward http://localhost:3000 --token <uuid>   # usa uma URL que já existe
 ```
+
+### Saída
 
 ```
 Listening on http://localhost:8084/9f3c…e21a (forwarding to http://localhost:3000)
@@ -34,40 +47,48 @@ Listening on http://localhost:8084/9f3c…e21a (forwarding to http://localhost:3
 Reconnected; forwarding 2 missed request(s)
 ```
 
-Cada mensagem gravada é reenviada para `<forward>` + o caminho depois do token + a query, uma de
-cada vez, na ordem em que o servidor as gravou (`seq`); a linha traz o status que o app local
-respondeu e o tempo. Quem
-mandou o webhook já recebeu a resposta configurada na URL: a resposta do app local só aparece na linha.
+A linha traz o status que o app local respondeu e o tempo. Quem mandou o webhook já recebeu a resposta configurada
+na URL: a resposta do app local só aparece na linha.
 
-- App local fora do ar ou com erro de rede: linha `error:` e o CLI continua ouvindo (a mensagem
+Ctrl+C sai com 0.
+
+### Erros
+
+- App local fora do ar ou com erro de rede: linha `error:` e o CLI continua ouvindo (a requisição
   não é reenviada de novo; use `replay`).
 - Queda da conexão com o servidor: reconecta sozinho (espera 1 s, 2 s, 4 s… até 30 s) e reenvia,
-  em ordem e sem repetir, as mensagens que chegaram durante a queda. Conexão que para de entregar
+  em ordem e sem repetir, as requisições que chegaram durante a queda. Conexão que para de entregar
   sem fechar é dada como caída depois de 45 s sem nenhuma linha (o servidor manda heartbeat a cada 15 s).
-- O evento SSE é só o aviso de que chegou mensagem: o CLI lê as mensagens pela listagem
-  `after=<seq da última tratada>`, que as traz inteiras e em ordem (mesmo as acima de 1 MB, cujo
-  evento chega truncado, e as de rajadas simultâneas, cujos eventos saem fora de ordem). Mensagem
-  apagada antes de ser lida não é reenviada; as demais não se perdem. Precisa de um servidor com
-  `seq` e `after` (esta versão).
-- Só as mensagens que chegam depois que o `listen` começa são reenviadas.
-- Token inexistente (ou apagado durante uma queda): `Token not found` no stderr e saída 1. Ctrl+C sai com 0.
+- Token inexistente (ou apagado durante uma queda): `Token not found` no stderr e saída 1.
+
+### Ordem e garantia de entrega
+
+O evento SSE é só o aviso de que chegou requisição: o CLI lê as requisições pela listagem
+`after=<seq da última tratada>`, que as traz inteiras e em ordem (mesmo as acima de 1 MB, cujo
+evento chega truncado, e as de rajadas simultâneas, cujos eventos saem fora de ordem). Requisição
+apagada antes de ser lida não é reenviada; as demais não se perdem. Precisa de um servidor com
+`seq` e `after` (esta versão).
 
 ## `anzol replay`
+
+Reenvia requisições gravadas, igual ao `listen`, e imprime a mesma linha para cada uma.
 
 ```bash
 anzol replay <token> <requestId> --to http://localhost:3000
 anzol replay <token> <id1> <id2> <id3> --to http://localhost:3000   # várias, na ordem dada
 ```
 
-Reenvia mensagens gravadas, igual ao `listen`, e imprime a mesma linha para cada uma. Sai com 0 quando o app
-local respondeu (qualquer status) e com 1 em `error:`, `Token not found` ou `Request not found` (nesse caso nada é
-entregue).
+Sai com 0 quando o app local respondeu (qualquer status) e com 1 em `error:`, `Token not found` ou
+`Request not found` (nesse caso nada é entregue).
 
 ## Falhas na entrega (`listen` e `replay`)
 
-Para ver o que o seu app faz quando o webhook chega mal, o `listen --forward` e o `replay` injetam falhas na entrega
-ao app local: mensagem que some, que chega duas vezes, atrasada, fora de ordem, cortada no meio do corpo, aos
-pingos, ou que o "provedor" desiste de esperar e tenta de novo. Sem nenhuma dessas opções, nada muda.
+Para ver o que o seu app faz quando o webhook chega mal, o `listen --forward` e o `replay` injetam
+[falhas na entrega](glossario.md#agentes-e-cli) ao app local: requisição que some, que chega duas vezes, atrasada,
+fora de ordem, cortada no meio do corpo, aos pingos, ou que o "provedor" desiste de esperar e tenta de novo. Sem
+nenhuma dessas opções, nada muda.
+
+### Exemplo
 
 ```bash
 # metade das mensagens chega duas vezes; a mesma semente repete as mesmas duplicatas
@@ -105,32 +126,42 @@ Chaos: delay 200..800 ms, abort 20%, retries 3; seed 7
 12:58:56 POST /pedidos/7 attempt 3/4 -> 200 (1 ms)
 ```
 
+### Opções
+
 | Opção | O que faz |
 |---|---|
-| `--chaos-drop P` | Com chance de P % (0 a 100, com ou sem `%`), a mensagem não é entregue: `-> dropped [chaos: drop]` |
-| `--chaos-duplicate P` | Com chance de P %, a mensagem é entregue duas vezes seguidas; a segunda linha leva `[chaos: duplicate]` |
+| `--chaos-drop P` | Com chance de P % (0 a 100, com ou sem `%`), a requisição não é entregue: `-> dropped [chaos: drop]` |
+| `--chaos-duplicate P` | Com chance de P %, a requisição é entregue duas vezes seguidas; a segunda linha leva `[chaos: duplicate]` |
 | `--chaos-delay MIN..MAX` | Espera um tempo sorteado na faixa antes de cada entrega: `200..800`, `1s..3s`, ou um valor só (`500`); `[chaos: delay 312 ms]` |
 | `--chaos-reorder N` | Segura N entregas (2 a 100), `-> held 1 of 3`, e as manda embaralhadas, nunca na ordem de chegada: `[chaos: reordered (arrived 3 of 3)]`. A leva incompleta sai 2 s depois da última (`listen`) ou no fim (`replay`); Ctrl+C a descarta |
 | `--chaos-abort P` | Com chance de P % a cada tentativa, manda os cabeçalhos (com o `Content-Length` do corpo inteiro) e metade do corpo e fecha a conexão, sem esperar resposta: `-> cut after 500 of 1000 bytes [chaos: abort]`. Só com alvo `http://` |
 | `--chaos-slow B` | Manda o corpo a B bytes por segundo, um pedaço a cada décimo de segundo: `[chaos: slow 50 B/s]` |
 | `--chaos-timeout T` | Desiste de esperar a resposta do app T depois de mandar o corpo (`500`, `2s`; padrão 30 s): `-> error: timed out after 500 ms [chaos: timeout]` |
 | `--retries N` | Retenta (0 a 10) depois de erro de conexão, prazo, corte, 5xx e 429. Espera 1 s, 2 s, 4 s… até 30 s, com jitter (entre a metade e o valor da vez), ou o `Retry-After` do app (segundos ou data HTTP, até 30 s). A linha ganha `attempt n/total` e `, retrying in <ms> ms` |
-| `--chaos-seed N` | Semente dos sorteios: a mesma semente repete as mesmas falhas nas mesmas mensagens (a n-ésima mensagem sorteia igual, faça o app o que fizer com as anteriores). Sem ela, uma é sorteada e aparece na linha `Chaos:` |
+| `--chaos-seed N` | Semente dos sorteios: a mesma semente repete as mesmas falhas nas mesmas requisições (a n-ésima requisição sorteia igual, faça o app o que fizer com as anteriores). Sem ela, uma é sorteada e aparece na linha `Chaos:` |
 
-Tempo sem unidade é ms, como nas outras opções do CLI. A retentativa e a duplicata repetem os cabeçalhos e o corpo
-gravados byte a byte (o `X-Request-Id`, o `Idempotency-Key` ou o `X-GitHub-Delivery` do provedor chegam iguais),
-para o app mostrar que é idempotente. As entregas continuam uma de cada vez: enquanto uma espera (atraso,
-retentativa), as seguintes aguardam, sem que o `listen` dê a conexão com o servidor como caída.
+Tempo sem unidade é ms, como nas outras opções do CLI.
+
+A retentativa e a duplicata repetem os cabeçalhos e o corpo gravados byte a byte (o `X-Request-Id`, o
+`Idempotency-Key` ou o `X-GitHub-Delivery` do provedor chegam iguais), para o app mostrar que é idempotente. As
+entregas continuam uma de cada vez: enquanto uma espera (atraso, retentativa), as seguintes aguardam, sem que o
+`listen` dê a conexão com o servidor como caída.
+
+### Saída
 
 A linha de cada tentativa é `HH:mm:ss MÉTODO caminho[ attempt n/total] -> resultado[, retrying in <ms> ms[ (Retry-After)]][ [chaos: …]]`,
 com resultado `<status> (<ms> ms)`, `error: <motivo>`, `cut after <n> of <total> bytes` ou `dropped`. A linha
 `Chaos: …; seed <n>` sai depois do `Listening on` (no `replay`, antes das entregas).
 
 Opção de caos com valor inválido sai com 2, o motivo no stderr, sem entregar nada. O `replay` sai com 1 quando alguma
-entrega terminou sem resposta do app (erro, prazo ou corte), mesmo depois das retentativas; mensagem descartada pelo
+entrega terminou sem resposta do app (erro, prazo ou corte), mesmo depois das retentativas; requisição descartada pelo
 `--chaos-drop` não conta.
 
 ## `anzol rules pull` e `anzol rules push`
+
+Baixa e sobe as regras de resposta da URL como arquivo JSON.
+
+### Exemplo
 
 ```bash
 anzol rules pull <token>                     # a lista de regras no stdout
@@ -139,16 +170,25 @@ anzol rules push <token> regras.json         # troca a lista inteira da URL pela
 anzol rules push <token> --dry-run regras.json   # só mostra o que o push mudaria; não grava
 ```
 
-O `pull` escreve a lista como o `GET /token/{id}/rules` a devolve, em JSON indentado com 2 espaços,
-UTF-8 e quebra de linha final, o mesmo formato do Export da tela. O `push` manda o arquivo no
-`PUT /token/{id}/rules` (a lista inteira: regra que não está no arquivo deixa de existir, e `[]`
-apaga todas) e imprime `Pushed <n> rule(s)`. Regra com `id` o mantém; sem `id`, o servidor gera um.
-Ida e volta `pull` → `push` → `pull` dá o mesmo arquivo.
+### Formato e efeito
+
+O `pull` escreve a lista como o `GET /token/{id}/rules` a devolve, em JSON indentado com 2 espaços, UTF-8 e quebra
+de linha final, o mesmo formato do Export da tela.
+
+O `push` manda o arquivo no `PUT /token/{id}/rules` (a lista inteira: regra que não está no arquivo deixa de existir,
+e `[]` apaga todas) e imprime `Pushed <n> rule(s)`. Regra com `id` o mantém; sem `id`, o servidor gera um. Ida e
+volta `pull` → `push` → `pull` dá o mesmo arquivo.
+
+### `--dry-run`
 
 Com `--dry-run`, o `push` compara o arquivo com as regras salvas, por `id`, e imprime no stdout o resumo em JSON
 `{"equal": [id…], "changed": [{"id", "name", "fields"}], "removed": [{"id", "name"}], "added": [{"id"?, "name"}]}`
-(regra sem `id`, ou com um que a URL não tem, é nova), sem gravar, com saída 0. Ele não valida as regras (uma nota no
-stderr lembra disso): quem valida é o servidor, no push de verdade. Arquivo com `id` repetido sai com 1.
+(regra sem `id`, ou com um que a URL não tem, é nova), sem gravar, com saída 0.
+
+Ele não valida as regras (uma nota no stderr lembra disso): quem valida é o servidor, no push de verdade. Arquivo com
+`id` repetido sai com 1.
+
+### Erros
 
 ```
 $ anzol rules push 9f3c…e21a regras.json
@@ -166,11 +206,11 @@ $ anzol rules push 9f3c…e21a regras.json
 
 ## `anzol send`
 
-Simula o provedor: dispara webhooks assinados como o Stripe, o GitHub, o Shopify ou o Slack
-assinariam, direto para o receptor do seu app, e tenta de novo quando ele falha. Serve para testar a
-verificação de assinatura, a idempotência e o que o app faz com a retentativa, sem depender do
-provedor de verdade. Entrega direto no `--to`, sem passar pela API do Anzol (não usa `--server`); o `--to` pode ser
-o receptor do seu app ou uma URL do Anzol.
+Simula o provedor: dispara webhooks assinados como o Stripe, o GitHub, o Shopify ou o Slack assinariam, direto para o
+receptor do seu app, e tenta de novo quando ele falha. Serve para testar a verificação de assinatura, a idempotência e
+o que o app faz com a retentativa, sem depender do provedor de verdade.
+
+### Exemplo
 
 ```bash
 # Stripe: 3 retentativas com backoff exponencial (1 s, 2 s, 4 s), Idempotency-Key igual em todas
@@ -188,12 +228,10 @@ anzol send --to http://localhost:3000/webhooks/github \
   --data-file push.json --repeat 5 --interval 500
 ```
 
-```
-14:02:07 #1 attempt 1/4 -> 503 (12 ms), retrying in 1000 ms
-14:02:08 #1 attempt 2/4 -> 429 (3 ms), retrying in 5000 ms (Retry-After)
-14:02:13 #1 attempt 3/4 -> 200 (9 ms)
-#1 delivered after 3 attempt(s)
-```
+### Opções
+
+Entrega direto no `--to`, sem passar pela API do Anzol (não usa `--server`); o `--to` pode ser o receptor do seu app
+ou uma URL do Anzol.
 
 | Opção | Padrão | O que faz |
 |---|---|---|
@@ -210,8 +248,10 @@ anzol send --to http://localhost:3000/webhooks/github \
 | `--timeout ms` | `10000` | Prazo de cada tentativa (conexão e resposta) |
 | `--repeat N` / `--interval ms` | `1` / `0` | Quantos eventos e a pausa entre o fim de um e o início do próximo |
 
-**Assinatura.** As mesmas fórmulas da [verificação de assinatura](api.md#verificação-de-assinatura) do
-servidor: uma URL do Anzol configurada com o mesmo provedor e segredo grava `valid: true`.
+#### Assinatura
+
+As mesmas fórmulas da [verificação de assinatura](api.md#verificação-de-assinatura) do servidor: uma URL do Anzol
+configurada com o mesmo provedor e segredo grava `valid: true`.
 
 | Provedor | Header | Conteúdo assinado (HMAC) |
 |---|---|---|
@@ -224,23 +264,10 @@ servidor: uma URL do Anzol configurada com o mesmo provedor e segredo grava `val
 A assinatura é refeita a cada tentativa (timestamp novo, como o Stripe faz) e substitui um `--header`
 com o mesmo nome.
 
-**Atributo cifrado (E2EE).** Aqui, E2EE quer dizer cifrado do remetente até a URL do Anzol: a ponta que abre é o
-servidor do Anzol, que decifra na chegada e grava o valor decifrado na mensagem. A CLI não cifra, não gera chave nem
-lê JWKS: `anzol send` só assina com HMAC. Para mandar um JWE, monte-o fora (com uma biblioteca JOSE, no formato da
-[decifra de atributo](api.md#decifra-de-atributo-e2ee): um JWS ES256 dentro de um JWE ECDH-ES/A256GCM para a chave
-pública do JWKS da URL) e entregue o corpo pronto com `--data-file`. Para só ver a decifra funcionando, use o
-[laboratório](api.md#laboratório-e2ee): pela API (`POST /e2ee-lab` e `POST /token/{id}/e2ee-lab/run`), pela tela
-ou pelo MCP, não pela CLI. Ele gera e entrega as mensagens pelo próprio servidor; o remetente de teste dele não
-serve para assinar um JWE montado fora, porque a chave privada fica no Redis da URL e nenhuma rota a devolve.
+#### Placeholders
 
-Do outro lado: `listen` e `replay` entregam o corpo como chegou, com o JWE; `wait-for` imprime a mensagem completa
-no stdout, **com o atributo decifrado** (`decrypted`: a URL com decifra é sempre protegida, e o `--read-secret` que a
-abre também mostra o valor), que vai para o log do CI. O `test` faz o mesmo quando aponta com `--token` para uma URL
-que decifra; a URL que ele mesmo cria não decifra. Numa URL com decifra, `--match '{"decryption": "valid"}'` espera só
-as decifradas.
-
-**Placeholders** no corpo e nos valores de `--header`, resolvidos uma vez por envio: as retentativas
-são o mesmo evento e levam os mesmos valores (só a assinatura muda).
+No corpo e nos valores de `--header`, resolvidos uma vez por envio: as retentativas são o mesmo evento e levam os
+mesmos valores (só a assinatura muda).
 
 | Placeholder | Valor |
 |---|---|
@@ -254,22 +281,59 @@ são o mesmo evento e levam os mesmos valores (só a assinatura muda).
 Outro `{{…}}`, ou `{{` sem fechar, é recusado antes de enviar (`Invalid template in --data: unknown
 placeholder {{foo}}`, saída 1).
 
-**Retentativa** em erro de conexão, timeout, 5xx e 429; nunca em 2xx, 3xx e nos outros 4xx. Quando a
-resposta traz `Retry-After` (segundos ou data HTTP), ele substitui o backoff e a linha termina em
-` (Retry-After)`; a espera nunca passa de `--max-delay`.
+#### Retentativa
 
-**Saída.** Uma linha por tentativa, `HH:mm:ss #<seq> attempt <n>/<total> -> <status> (<ms> ms)` ou
-`-> error: <motivo>`, com `, retrying in <ms> ms` quando vai tentar de novo; e uma por envio,
-`#<seq> delivered after <n> attempt(s)` (2xx) ou `#<seq> gave up after <n> attempt(s)`. Um envio que
-desiste não interrompe o `--repeat`. Sai com 0 se todos os envios entregaram e com 1 se algum
-desistiu ou se as opções são inválidas (motivo no stderr, nada é enviado). Ctrl+C sai com 130 sem
-reenviar.
+Em erro de conexão, timeout, 5xx e 429; nunca em 2xx, 3xx e nos outros 4xx. Quando a resposta traz `Retry-After`
+(segundos ou data HTTP), ele substitui o backoff e a linha termina em ` (Retry-After)`; a espera nunca passa de
+`--max-delay`.
+
+### Saída
+
+```
+14:02:07 #1 attempt 1/4 -> 503 (12 ms), retrying in 1000 ms
+14:02:08 #1 attempt 2/4 -> 429 (3 ms), retrying in 5000 ms (Retry-After)
+14:02:13 #1 attempt 3/4 -> 200 (9 ms)
+#1 delivered after 3 attempt(s)
+```
+
+Uma linha por tentativa, `HH:mm:ss #<seq> attempt <n>/<total> -> <status> (<ms> ms)` ou `-> error: <motivo>`, com
+`, retrying in <ms> ms` quando vai tentar de novo; e uma por envio, `#<seq> delivered after <n> attempt(s)` (2xx) ou
+`#<seq> gave up after <n> attempt(s)`.
+
+Um envio que desiste não interrompe o `--repeat`. Sai com 0 se todos os envios entregaram e com 1 se algum desistiu
+ou se as opções são inválidas (motivo no stderr, nada é enviado). Ctrl+C sai com 130 sem reenviar.
+
+### Atributo cifrado (E2EE)
+
+Aqui, E2EE quer dizer cifrado do remetente até a URL do Anzol: a ponta que abre é o servidor do Anzol, que decifra na
+chegada e grava o valor decifrado na requisição. A CLI não cifra, não gera chave nem lê JWKS: `anzol send` só assina
+com HMAC.
+
+Para mandar um JWE, monte-o fora (com uma biblioteca JOSE, no formato da
+[decifra de atributo](api.md#decifra-de-atributo-e2ee): um JWS ES256 dentro de um JWE ECDH-ES/A256GCM para a chave
+pública do JWKS da URL) e entregue o corpo pronto com `--data-file`.
+
+Para só ver a decifra funcionando, use o [laboratório](api.md#laboratório-e2ee): pela API (`POST /e2ee-lab` e
+`POST /token/{id}/e2ee-lab/run`), pela tela ou pelo MCP, não pela CLI. Ele gera e entrega as requisições pelo próprio
+servidor; o remetente de teste dele não serve para assinar um JWE montado fora, porque a chave privada fica no Redis
+da URL e nenhuma rota a devolve.
+
+Do outro lado: `listen` e `replay` entregam o corpo como chegou, com o JWE; `wait-for` imprime a requisição completa
+no stdout, **com o atributo decifrado** (`decrypted`: a URL com decifra é sempre protegida, e o `--read-secret` que a
+abre também mostra o valor), que vai para o log do CI.
+
+O `test` faz o mesmo que o `wait-for` quando aponta com `--token` para uma URL que decifra; a URL que ele mesmo cria
+não decifra.
+
+Numa URL com decifra, `--match '{"decryption": "valid"}'` espera só as decifradas.
 
 ## `anzol wait-for`
 
 Para o teste de integração ou E2E do seu app: depois de disparar a ação que gera o webhook, espera
 (com prazo) até a URL receber a requisição esperada, e diz por que não chegou quando falha. Usa o
 [`requests/wait`](api.md#esperar-por-mensagens) da API.
+
+### Exemplo
 
 ```bash
 # um POST em /pedidos… com status "pago" no corpo JSON, em até 10 s; as mensagens vão para o jq
@@ -284,6 +348,27 @@ curl -s -X POST http://localhost:8084/<uuid>/pedidos -d '{"status":"pago"}'
 anzol wait-for --token <uuid> --after "$CURSOR" --path /pedidos --timeout 10000
 ```
 
+### Opções
+
+| Opção | Padrão | O que faz |
+|---|---|---|
+| `--token <uuid>` | obrigatória | A URL observada |
+| `--match <json>` / `--match-file <arquivo>` | `{}` (casa qualquer requisição) | O objeto `match` de uma [regra de resposta](api.md#regras-de-resposta); um ou outro |
+| `--method M` | — | Repetível: casa qualquer um deles (`match.method`) |
+| `--path <prefixo>` | — | O caminho depois do token começa com o prefixo (`match.path.prefix`) |
+| `--header "Nome: valor"` | — | Repetível: o cabeçalho tem exatamente o valor (`match.headers`, nome sem caixa) |
+| `--body-contains <texto>` | — | O corpo contém o texto |
+| `--json-path '<caminho>[=<json>]'` | — | Repetível: sem `=`, o caminho existe no corpo JSON; com `=`, o valor nele é igual ao que vem depois do primeiro `=`, lido como JSON (`$.valor=10` é o número) ou, se não for JSON, como texto (`$.status=pago`) |
+| `--count N` | `1` | Quantas requisições que casam são necessárias (1 a 100) |
+| `--timeout ms` | `30000` | Quanto esperar por requisições novas (0 a 300000; `0` só olha o histórico) |
+| `--after <seq>` / `--new` | todo o histórico | Só requisições com `seq` maior; `--new` usa o `seq` da mais nova no momento em que o comando começa. Um ou outro |
+
+Os atalhos montam o `match` e se somam ao `--match`: atalho de mesma chave de topo substitui a do
+`--match` (`--method` troca `method`; `--body-contains` e `--json-path` juntos formam o `body`), e todas as
+condições valem em E.
+
+### Saída
+
 ```
 $ anzol wait-for --token 9f3c…e21a --method DELETE --path /evento/2 --timeout 1500
 []
@@ -292,33 +377,13 @@ closest: #1790438428567114 bbe0928d-1e7f-4684-961c-9a2e86c4980d
   - method: expected DELETE, got POST
 ```
 
-| Opção | Padrão | O que faz |
-|---|---|---|
-| `--token <uuid>` | obrigatória | A URL observada |
-| `--match <json>` / `--match-file <arquivo>` | `{}` (casa qualquer mensagem) | O objeto `match` de uma [regra de resposta](api.md#regras-de-resposta); um ou outro |
-| `--method M` | — | Repetível: casa qualquer um deles (`match.method`) |
-| `--path <prefixo>` | — | O caminho depois do token começa com o prefixo (`match.path.prefix`) |
-| `--header "Nome: valor"` | — | Repetível: o cabeçalho tem exatamente o valor (`match.headers`, nome sem caixa) |
-| `--body-contains <texto>` | — | O corpo contém o texto |
-| `--json-path '<caminho>[=<json>]'` | — | Repetível: sem `=`, o caminho existe no corpo JSON; com `=`, o valor nele é igual ao que vem depois do primeiro `=`, lido como JSON (`$.valor=10` é o número) ou, se não for JSON, como texto (`$.status=pago`) |
-| `--count N` | `1` | Quantas mensagens que casam são necessárias (1 a 100) |
-| `--timeout ms` | `30000` | Quanto esperar por mensagens novas (0 a 300000; `0` só olha o histórico) |
-| `--after <seq>` / `--new` | todo o histórico | Só mensagens com `seq` maior; `--new` usa o `seq` da mais nova no momento em que o comando começa. Um ou outro |
+O stdout é só o JSON das requisições que casaram, um array numa linha (completas, como o
+`GET /token/{id}/request/{requestId}`, em ordem de `seq`), pronto para o `jq`; no prazo sem casar, as que casaram até
+ali (ou `[]`).
 
-`anzol cursor <token>` imprime no stdout só o `seq` da mensagem mais nova da URL (`0` sem mensagens), com saída 0;
-token inexistente dá `Token not found` no stderr e saída 1. Num teste, o `--new` perde o disparo que chega antes de o
-`wait-for` começar; ler o cursor antes de disparar e esperar com `--after` não tem essa corrida.
-
-Os atalhos montam o `match` e se somam ao `--match`: atalho de mesma chave de topo substitui a do
-`--match` (`--method` troca `method`; `--body-contains` e `--json-path` juntos formam o `body`), e todas as
-condições valem em E.
-
-**Saída.** O stdout é só o JSON das mensagens que casaram, um array numa linha (completas, como o
-`GET /token/{id}/request/{requestId}`, em ordem de `seq`), pronto para o `jq`; no prazo sem casar,
-as que casaram até ali (ou `[]`). O resumo vai para o stderr: `matched <n>/<count> in <ms> ms`, ou
-`timed out after <ms> ms: <n>/<count> matched` seguido de `closest: #<seq> <uuid>` e uma linha
-`  - <frase>` por condição que falhou na mensagem que chegou mais perto (sem essas linhas se nenhuma
-mensagem foi avaliada).
+O resumo vai para o stderr: `matched <n>/<count> in <ms> ms`, ou `timed out after <ms> ms: <n>/<count> matched`
+seguido de `closest: #<seq> <uuid>` e uma linha `  - <frase>` por condição que falhou na requisição que chegou mais
+perto (sem essas linhas se nenhuma requisição foi avaliada).
 
 | Situação | Saída |
 |---|---|
@@ -328,11 +393,22 @@ mensagem foi avaliada).
 
 Quem corta a espera é o servidor: o prazo HTTP do CLI é o `--timeout` mais 10 s.
 
+## `anzol cursor`
+
+`anzol cursor <token>` imprime no stdout só o `seq` da requisição mais nova da URL (`0` sem requisições), com saída 0;
+token inexistente dá `Token not found` no stderr e saída 1.
+
+Num teste, o `--new` perde o disparo que chega antes de o `wait-for` começar; ler o cursor antes de disparar e esperar
+com `--after` não tem essa corrida. No [`anzol test`](#anzol-test), essa leitura é o passo 3.
+
 ## `anzol test`
 
-O teste de CI num comando só: cria uma URL, roda o comando que faz o seu app mandar o webhook (o gatilho, depois do
-`--`), espera a requisição chegar com as condições do [`wait-for`](#anzol-wait-for), confere o status que a URL
-respondeu e apaga a URL, passe ou falhe. Usa as rotas de sempre da API, sem `curl` nem `jq`.
+O teste de CI num comando só: cria uma URL, roda o comando que faz o seu app mandar o webhook (o
+[gatilho](glossario.md#agentes-e-cli), depois do `--`), espera a requisição chegar com as condições do
+[`wait-for`](#anzol-wait-for), confere o status que a URL respondeu e apaga a URL, passe ou falhe. Usa as rotas de
+sempre da API, sem `curl` nem `jq`.
+
+### Exemplo
 
 ```bash
 # {url} no gatilho vira a URL criada; a regra do arquivo responde 202 ao POST em /pedidos
@@ -346,6 +422,41 @@ anzol test --path /pedidos --timeout 120000
 anzol test --token <uuid> --path /pedidos -- ./dispara-pedido.sh {url}
 ```
 
+### Passos
+
+Na ordem, o que ele faz:
+
+1. Cria a URL, ou usa a do `--token`.
+2. Com `--rules`, troca as regras da URL pelas do arquivo, como o `rules push` (o 422 sai como no `rules push`).
+3. Lê o cursor (o mesmo número do [`anzol cursor`](#anzol-cursor)) **antes** do gatilho: só conta o que chegar depois
+   dele, e o webhook que chega antes de a espera começar não se perde. Numa URL criada ali, o cursor é `0`.
+4. Pede ao servidor que confira o `match` e o `--count` (um `requests/wait` com `timeout` 0, que responde na hora):
+   recusados, o gatilho nem roda.
+5. Roda o gatilho até ele sair. `{url}`, em qualquer argumento, vira a URL; o ambiente dele ganha `ANZOL_URL` e
+   `ANZOL_TOKEN`. O stdout e o stderr do gatilho vão para o stderr, e só o nome do programa é impresso (os argumentos
+   podem ter segredo). Sem gatilho, imprime `waiting: send the requests to <url>`.
+6. Espera como o `wait-for --after <cursor>`.
+7. Com `--status`, confere que cada requisição que casou foi respondida com esse status (o `response.status` gravado:
+   o da regra que respondeu ou o padrão da URL).
+8. Apaga a URL que criou, também quando falha, no Ctrl+C e no SIGTERM de um job cancelado.
+
+### Opções
+
+| Opção | Padrão | O que faz |
+|---|---|---|
+| `-- <gatilho> [argumentos]` | nenhum | O comando que faz o seu app mandar o webhook |
+| `--token <uuid>` | cria uma URL | Usa uma URL que já existe e não a apaga no fim |
+| `--rules <arquivo>` | — | Arquivo JSON com a lista de regras, no formato do `rules pull` |
+| `--status N` | — | Toda requisição que casou tem de ter sido respondida com `N` |
+| `--match`, `--match-file`, `--method`, `--path`, `--header`, `--body-contains`, `--json-path`, `--count`, `--timeout` | os do `wait-for` | As condições e o prazo, [como no `wait-for`](#anzol-wait-for) |
+
+A URL do `{url}` é o `--server` mais o token: o app que manda o webhook precisa alcançar o servidor por esse endereço.
+
+No zsh, `{url}` logo antes de um redirecionamento (`… {url} > saida.json`) vira descritor de arquivo e some da linha;
+ponha entre aspas (`'{url}'`) ou leia a URL de `ANZOL_URL`.
+
+### Saída
+
 ```
 $ anzol test --rules regras.json --method POST --path /pedidos --json-path '$.status=pago' --status 202 -- ./dispara-pedido.sh {url}
 url: http://localhost:8084/31c2…f633 (created; deleted at the end)
@@ -358,37 +469,9 @@ status: 1/1 answered 202
 url: deleted
 ```
 
-Na ordem, o que ele faz:
-
-1. Cria a URL, ou usa a do `--token`.
-2. Com `--rules`, troca as regras da URL pelas do arquivo, como o `rules push` (o 422 sai como no `rules push`).
-3. Lê o cursor (o mesmo número do `anzol cursor`) **antes** do gatilho: só conta o que chegar depois dele, e o webhook
-   que chega antes de a espera começar não se perde. Numa URL criada ali, o cursor é `0`.
-4. Pede ao servidor que confira o `match` e o `--count` (um `requests/wait` com `timeout` 0, que responde na hora):
-   recusados, o gatilho nem roda.
-5. Roda o gatilho até ele sair. `{url}`, em qualquer argumento, vira a URL; o ambiente dele ganha `ANZOL_URL` e
-   `ANZOL_TOKEN`. O stdout e o stderr do gatilho vão para o stderr, e só o nome do programa é impresso (os argumentos
-   podem ter segredo). Sem gatilho, imprime `waiting: send the requests to <url>`.
-6. Espera como o `wait-for --after <cursor>`.
-7. Com `--status`, confere que cada mensagem que casou foi respondida com esse status (o `response.status` gravado:
-   o da regra que respondeu ou o padrão da URL).
-8. Apaga a URL que criou, também quando falha, no Ctrl+C e no SIGTERM de um job cancelado.
-
-| Opção | Padrão | O que faz |
-|---|---|---|
-| `-- <gatilho> [argumentos]` | nenhum | O comando que faz o seu app mandar o webhook |
-| `--token <uuid>` | cria uma URL | Usa uma URL que já existe e não a apaga no fim |
-| `--rules <arquivo>` | — | Arquivo JSON com a lista de regras, no formato do `rules pull` |
-| `--status N` | — | Toda mensagem que casou tem de ter sido respondida com `N` |
-| `--match`, `--match-file`, `--method`, `--path`, `--header`, `--body-contains`, `--json-path`, `--count`, `--timeout` | os do `wait-for` | As condições e o prazo, [como no `wait-for`](#anzol-wait-for) |
-
-A URL do `{url}` é o `--server` mais o token: o app que manda o webhook precisa alcançar o servidor por esse endereço.
-No zsh, `{url}` logo antes de um redirecionamento (`… {url} > saida.json`) vira descritor de arquivo e some da linha;
-ponha entre aspas (`'{url}'`) ou leia a URL de `ANZOL_URL`.
-
-**Saída.** O stdout é o do `wait-for`: só o array JSON das mensagens que casaram. O stderr tem uma linha por passo
+O stdout é o do `wait-for`: só o array JSON das requisições que casaram. O stderr tem uma linha por passo
 (`url:`, `rules:`, `cursor:`, `trigger:`, o resumo do `wait-for`, `status:`), a saída do gatilho e, na falha, o
-`closest` do `wait-for`, que diz qual condição a mensagem mais perto não cumpriu:
+`closest` do `wait-for`, que diz qual condição a requisição mais perto não cumpriu:
 
 ```
 timed out after 2009 ms: 0/1 matched
@@ -404,8 +487,10 @@ url: deleted
 | Uso inválido, `--rules` ou `match` recusados pelo servidor (422), `Token not found` ou servidor fora do ar | 2 |
 | O gatilho não subiu ou saiu com código diferente de 0 (a espera não começa) | 3 |
 
-No GitHub Actions, o servidor sobe como serviço com a [imagem publicada](../README.pt-BR.md#início-rápido), e o CLI é construído do
-fonte da mesma versão:
+### No CI
+
+No GitHub Actions, o servidor sobe como serviço com a [imagem publicada](../README.pt-BR.md#início-rápido), e o CLI é
+construído do fonte da mesma versão:
 
 ```yaml
 jobs:
@@ -467,13 +552,13 @@ Os serviços se acham pelo nome (`REDIS_HOST: redis`), e o CLI e o gatilho, que 
 - **Arquivos de multipart não são reenviados:** o servidor não guarda arquivos nem o corpo cru do
   multipart, só os campos de texto. A linha avisa com `[files were not forwarded: not stored by the server]`.
 - **Como o servidor grava, não como chegou:** cabeçalho repetido chega com o último valor, `_` no
-  nome vira `-`, nomes em minúsculas, e `content-type` vazio aparece nas mensagens sem corpo
+  nome vira `-`, nomes em minúsculas, e `content-type` vazio aparece nas requisições sem corpo
   (o servidor grava assim).
 - **Cabeçalho com valor fora do ASCII** chega com `?` no lugar desses caracteres (limite do
   cliente HTTP do Java).
 - **Caminho com caractere que não é válido numa URI** (ex.: `"` cru) não é reenviado: sai uma linha
   `error:` com o motivo.
-- **Queda longa com limpeza automática:** mensagens que a limpeza apagou durante a queda não
+- **Queda longa com [limpeza automática](glossario.md#captura):** requisições que a limpeza apagou durante a queda não
   existem mais no servidor e não são reenviadas.
-- Reenvio com prazo de 30 s por mensagem; sem `--json`, filtros, túnel para a internet ou
+- Reenvio com prazo de 30 s por requisição; sem `--json`, filtros, túnel para a internet ou
   reenvio em paralelo.
