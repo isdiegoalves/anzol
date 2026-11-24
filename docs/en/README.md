@@ -40,6 +40,7 @@ not make sense, the [glossary](glossary.md) says what it is and what it is calle
 | Know whether the server is up and on which version | [Health and version](operations.md#health-and-version) |
 | Deploy to Kubernetes | [Helm](helm.md) |
 | Run the tests and contribute | [Development](development.md) |
+| Understand an error or an odd behavior | [Troubleshooting](troubleshooting.md) |
 | Understand a word | [Glossary](glossary.md) |
 
 ## All pages
@@ -58,6 +59,7 @@ Each page is of one kind. A **first use** page takes you from zero to a result. 
 | [Operations](operations.md) | How-to | whoever runs the server | variables, health, Redis memory, observability |
 | [Helm](helm.md) | How-to | Kubernetes users | the chart and its values |
 | [Development](development.md) | How-to | contributors | test suites, local CI, code standards |
+| [Troubleshooting](troubleshooting.md) | How-to | anyone stuck on an error | what you see, why it happens and what to do, by topic |
 | [Glossary](glossary.md) | Reference | everyone | each term, its name in the API and the name you may already know |
 
 Outside this folder: the OpenAPI 3.1 document, served by the app at `/openapi.yaml` and `/openapi.json`, and the
