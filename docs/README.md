@@ -41,6 +41,7 @@ não fizer sentido, o [glossário](glossario.md) diz o que ela é e como ela se 
 | Saber se o servidor está de pé e em que versão | [Saúde e versão](operacao.md#saúde-e-versão) |
 | Subir no Kubernetes | [Helm](helm.md) |
 | Rodar os testes e contribuir | [Desenvolvimento](desenvolvimento.md) |
+| Entender um erro ou um comportamento estranho | [Solução de problemas](solucao-de-problemas.md) |
 | Entender uma palavra | [Glossário](glossario.md) |
 
 ## Todas as páginas
@@ -59,6 +60,7 @@ Cada página é de um tipo. **Primeiro uso** leva você do zero a um resultado. 
 | [Operação](operacao.md) | Como fazer | quem roda o servidor | variáveis, saúde, memória do Redis, observabilidade |
 | [Helm](helm.md) | Como fazer | quem usa Kubernetes | o chart e os valores |
 | [Desenvolvimento](desenvolvimento.md) | Como fazer | quem contribui | suítes de teste, CI local, padrões de código |
+| [Solução de problemas](solucao-de-problemas.md) | Como fazer | quem travou num erro | o que você vê, por que acontece e o que fazer, por tema |
 | [Glossário](glossario.md) | Referência | todos | cada termo, o nome dele na API e o nome que você talvez já conheça |
 
 Fora desta pasta: o documento OpenAPI 3.1, servido pelo app em `/openapi.yaml` e `/openapi.json`, e o contrato
