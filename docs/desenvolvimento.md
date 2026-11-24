@@ -3,6 +3,12 @@
 [![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/development.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](desenvolvimento.md)
 
+Como testar o Anzol na sua máquina e o que o CI roda: as suítes de cada parte, a verificação rápida, o CI local e as
+varreduras no GitHub. É uma página de como fazer, para quem mexe no código. Os testes do backend precisam de Docker; o
+CI local, de Docker, Java 25 e Node 24.
+
+**Nesta página:** [Como testar](#como-testar) · [Padrões de código](#padrões-de-código)
+
 ## Como testar
 
 ```bash
@@ -29,37 +35,36 @@ cd cli && ./gradlew check
 cd tests/cli && node --test
 ```
 
-O E2E e o contrato exigem a saída para a rede privada, o MCP e a IA (num LLM falso que as próprias suítes sobem)
-ligados, o que o `docker-compose.yml` sozinho não faz. Suba o stack do CI local e aponte as suítes para ele:
+O E2E e o contrato exigem a saída para a rede privada, o [MCP](glossario.md#agentes-e-cli) e a
+[IA](glossario.md#agentes-e-cli) (num LLM falso que as próprias suítes sobem) ligados, o que o `docker-compose.yml`
+sozinho não faz.
+
+Suba o stack do CI local e aponte as suítes para ele:
 `docker compose -p anzolci -f docker-compose.yml -f docker-compose.ci.yml up -d --build` e
 `BASE_URL=http://localhost:8088` (no contrato, também `ANZOL_FAULT_HOLD_MAX=30`, o teto desse stack); ao terminar, o
 mesmo `docker compose` com `down -v`.
 
-O Vitest roda os testes em ordem aleatória, e a semente sai no topo do relatório (`Running tests with seed "…"`).
-Para repetir a ordem de uma rodada que falhou: `VITEST_SEED=<semente> npx ng test --watch=false`.
-
 Para mexer na tela com recarga automática, com o compose no ar: `cd frontend && npx ng serve`
 abre em <http://localhost:4200> e encaminha a API para a porta 8084 (`proxy.conf.mjs`).
 
+O Vitest roda os testes em ordem aleatória, e a semente sai no topo do relatório (`Running tests with seed "…"`).
+Para repetir a ordem de uma rodada que falhou: `VITEST_SEED=<semente> npx ng test --watch=false`.
+
 ### Verificação rápida
 
-`./verificar.sh` roda, sem Docker e sem subir o app, só o que dá retorno rápido nas partes com mudança no git: ktlint,
-detekt e compilação (inclusive dos testes) no `backend/` e no `cli/`; lint, tipos, stylelint, i18n, formato e
-testes unitários na tela. Imprime uma linha por etapa e, nas que falham, as primeiras linhas do erro. Não roda os testes
-do backend e do CLI, o E2E, o contrato nem a regressão visual: esses ficam no `./ci.sh`. `./verificar.sh backend cli`
-escolhe as partes.
+`./verificar.sh` roda, sem Docker e sem subir o app, só o que dá retorno rápido nas partes com mudança no git:
+
+- no `backend/` e no `cli/`: ktlint, detekt e compilação (inclusive dos testes);
+- na tela: lint, tipos, stylelint, i18n, formato e testes unitários.
+
+Imprime uma linha por etapa e, nas que falham, as primeiras linhas do erro. `./verificar.sh backend cli` escolhe as
+partes.
+
+Não roda os testes do backend e do CLI, o E2E, o contrato nem a regressão visual: esses ficam no `./ci.sh`.
 
 ### CI local
 
-O `./ci.sh` da raiz roda tudo o que está acima de uma vez. No GitHub, o workflow `testes`
-(`.github/workflows/testes.yml`) roda a cada push e pull request só a parte sem stack (passo 1 abaixo: backend, CLI e
-frontend), e o workflow `e2e` (`.github/workflows/e2e.yml`) roda, a cada push e em pull request que mexam em
-`frontend/`, em `backend/src/main/`, no `Dockerfile`, no compose do stack isolado ou no próprio workflow, uma parte do
-E2E contra a imagem do `Dockerfile`: os specs de caos (`caos*`), os `patamar-*`, o `cores-lista` e o `i18n-carga`. A
-seleção está no script `e2e:github` do `frontend/package.json`; para rodá-la como o GitHub roda, com o app no ar:
-`cd frontend && BASE_URL=http://localhost:8084 npm run e2e:github`. Depois da seleção, o mesmo workflow roda a
-regressão visual (`frontend/e2e-visual.sh`), contra as mesmas fotos do `./ci.sh`. Contrato, o E2E inteiro e o aceite do
-CLI ficam no `./ci.sh`.
+O `./ci.sh` da raiz roda tudo o que está acima de uma vez.
 
 ```bash
 ./ci.sh
@@ -90,6 +95,21 @@ Precisa de Docker, Java 25 e Node 24 (confere no início e diz o que falta) e da
 Uma etapa que falha não interrompe as seguintes; se o stack não sobe, as de integração aparecem
 como NÃO RODOU. A saída é 0 só com tudo OK. Com os caches do Gradle, do npm e do Docker quentes, a
 rodada inteira leva de 7 a 9 minutos.
+
+#### No GitHub
+
+- O workflow `testes` (`.github/workflows/testes.yml`) roda a cada push e pull request só a parte sem stack (passo 1
+  acima: backend, CLI e frontend).
+- O workflow `e2e` (`.github/workflows/e2e.yml`) roda uma parte do E2E contra a imagem do `Dockerfile`: os specs de
+  caos (`caos*`), os `patamar-*`, o `cores-lista` e o `i18n-carga`. Roda a cada push e em pull request que mexam em
+  `frontend/`, em `backend/src/main/`, no `Dockerfile`, no compose do stack isolado ou no próprio workflow.
+- Depois da seleção, o mesmo workflow `e2e` roda a regressão visual (`frontend/e2e-visual.sh`), contra as mesmas fotos
+  do `./ci.sh`.
+
+A seleção está no script `e2e:github` do `frontend/package.json`; para rodá-la como o GitHub roda, com o app no ar:
+`cd frontend && BASE_URL=http://localhost:8084 npm run e2e:github`.
+
+Contrato, o E2E inteiro e o aceite do CLI ficam no `./ci.sh`.
 
 ### Varredura de segurança no GitHub
 
