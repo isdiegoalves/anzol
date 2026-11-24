@@ -51,6 +51,8 @@ services:
       - "host.docker.internal:host-gateway"
 ```
 
+Sem o compose, com `docker run`, cada variável entra com `-e`, como `-e ANZOL_MCP_ENABLED=true`.
+
 ## Saúde e versão
 
 `GET /health` responde `200` só enquanto o Redis responde a um `PING` em até 2 s; fora disso, `503` com

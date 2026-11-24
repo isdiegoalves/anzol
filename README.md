@@ -24,7 +24,7 @@ And a defense lab measures what your script or AI agent blocks when the attack a
 [![Run locally with Docker](https://img.shields.io/badge/Run_locally_with_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#quick-start)
 [![Run a defense round](https://img.shields.io/badge/Run_a_defense_round-7A3E62?style=for-the-badge)](#defense-lab-the-signature-checks-out-and-it-is-still-an-attack)
 
-[API](docs/en/api.md) · [CLI](docs/en/cli.md) · [MCP and AI](docs/en/mcp-and-ai.md) · [Defense lab](docs/en/defense-lab.md) · [All docs](docs/en/README.md) · [Glossary](docs/en/glossary.md)
+[API](docs/en/api.md) · [CLI](docs/en/cli.md) · [MCP and AI](docs/en/mcp-and-ai.md) · [Defense lab](docs/en/defense-lab.md) · [All docs](docs/en/README.md) · [Glossary](docs/en/glossary.md) · [Troubleshooting](docs/en/troubleshooting.md)
 
 </div>
 
@@ -110,9 +110,9 @@ stores the URLs and the messages.
 | What | In one line | Details |
 |---|---|---|
 | Real-time capture | Method, path, headers, query and body of every request, with search, filters and Compare | [API](docs/en/api.md) |
-| Response rules | Status, headers and body by method, path, query, header or body; template and scenarios (fail 2×, then 200) | [Rules](docs/en/api.md#response-rules) |
+| Response rules | Status, headers and body by method, path, query, header or body; template and scenarios (fail 3×, then 200) | [Rules](docs/en/api.md#response-rules) · [Scenarios](docs/en/api.md#scenarios) |
 | Failure injection | Delay, connection reset, stalled connection, truncated body, by chance and by time window; on delivery to your app, through the CLI or the replay | [Failures](docs/en/api.md#delays-and-network-failures) · [CLI](docs/en/cli.md#delivery-failures-listen-and-replay) |
-| HMAC signature | Stripe, GitHub, Shopify, Slack and generic HMAC (SHA-1, SHA-256, SHA-512), with the reason for each failure and who fixes it | [Signature](docs/en/api.md#signature-verification) |
+| HMAC signature | Stripe, GitHub, Shopify, Slack and generic HMAC (SHA-1, SHA-256, SHA-512), with the reason for each failure and who fixes it | [Signature](docs/en/api.md#signature-verification) · [What to do](docs/en/troubleshooting.md#signature-schema-and-decryption) |
 | Schema | JSON Schema 2020-12 on every message, usable in rules | [Schema](docs/en/api.md#schema-validation) |
 | Attribute decryption (E2EE) | The URL opens an attribute encrypted by the sender and checks who signed it; a lab with 27 ready-made scenarios | [Decryption](docs/en/api.md#attribute-decryption-e2ee) |
 | Defense lab | 32 requests with an answer key, 14 of them attacks (integrity, compromised sender, prompt injection); measures what your script or agent detects, blocks and obeys | [Guide](docs/en/defense-lab.md) · [API](docs/en/api.md#defense-lab) |
@@ -331,7 +331,7 @@ URL; the exit status tells CI whether it passed. Every command and option in [`d
 served at `/openapi.yaml` and `/openapi.json`; the black-box contract that guarantees them, in
 [`tests/contract/README.md`](tests/contract/README.md) (in Portuguese).
 
-**MCP**: with `ANZOL_MCP_ENABLED=true` (turned on in the compose file), the app is an
+**MCP**: with `ANZOL_MCP_ENABLED=true` (off by default; see [how to turn it on](docs/en/operations.md#turning-things-on-in-compose)), the app is an
 [MCP](https://modelcontextprotocol.io) server at `/mcp` with 23 tools over the same API
 ([details](docs/en/mcp-and-ai.md#mcp)):
 

@@ -53,7 +53,7 @@ and "Searching messages": it is the same thing. In the API the field is `request
 | Response rule | A condition plus a response: if the request matches, the URL answers with the rule's status, headers and body | `GET`/`PUT /token/{id}/rules`; `get_rules`, `set_rules`; `anzol rules pull`/`push` | a mock server stub or mapping, WireMock style |
 | Condition (`match`) | The part of the rule that says when it applies: method, path, query, header, body, signature, schema or decryption | `match` | matcher |
 | Near miss | The rule that came closest to matching, with the condition that failed | `near_miss`; `closest:` in the CLI | closest rule |
-| Scenario (of a rule) | State that makes the same rule answer differently on each call, such as "fail twice, then 200" | `scenario {name, requiredState, newState}`; `/token/{id}/scenarios` | WireMock Scenarios; every scenario starts in `Started` |
+| Scenario (of a rule) | State that makes the same rule answer differently on each call, such as "fail three times, then 200" | `scenario {name, requiredState, newState}`; `/token/{id}/scenarios` | WireMock Scenarios; every scenario starts in `Started` |
 | Template | A response body built from the request's data | `response.template` | Handlebars |
 | Failure injection | The URL fails on purpose: it delays, resets the connection, stalls the connection or truncates the body | `response.delay`, `response.fault`, `response.dribble` | fault injection; chaos |
 | Stalled connection | The connection stays open with no response, or stops after the headers. On the screen: "Hang" and "Stall after headers" | `fault: "hang"`, `fault: "stall_after_headers"` | server-side timeout |
