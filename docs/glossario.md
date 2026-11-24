@@ -26,8 +26,8 @@ superfície chama esse UUID de um jeito:
 
 O seu `<uuid>` está na barra do topo da tela, no fim da URL, e no campo `uuid` da resposta de `POST /token`.
 
-O que chega na URL também tem dois nomes: a tela e o README dizem **requisição**; a referência da API e o MCP dizem
-**mensagem**. Na API o campo é `request`, e o identificador é `request_id`.
+O que chega na URL é a **requisição**. Alguns títulos e nomes de ferramenta ainda dizem **mensagem**, como "Esperar
+por mensagens" e "Buscar mensagens": é a mesma coisa. Na API o campo é `request`, e o identificador é `request_id`.
 
 ## Captura
 

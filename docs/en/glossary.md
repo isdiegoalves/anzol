@@ -27,8 +27,8 @@ UUID something different:
 Your `<uuid>` is in the top bar of the screen, at the end of the URL, and in the `uuid` field of the `POST /token`
 response.
 
-What arrives at the URL also has two names: the screen and the README say **request**; the API reference and MCP say
-**message**. In the API the field is `request`, and the identifier is `request_id`.
+What arrives at the URL is the **request**. A few headings still say **message**, such as "Waiting for messages"
+and "Searching messages": it is the same thing. In the API the field is `request`, and the identifier is `request_id`.
 
 ## Capture
 
