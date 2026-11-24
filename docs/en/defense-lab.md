@@ -29,7 +29,7 @@ injected instruction.
 </picture>
 
 The full contract (routes, fields, errors, and limits) is in [`api.md`](api.md#defense-lab); the MCP tools
-are in [`mcp-e-ia.md`](mcp-and-ai.md#defense-lab).
+are in [`mcp-and-ai.md`](mcp-and-ai.md#defense-lab).
 
 ## First round
 
@@ -284,7 +284,7 @@ nobody measures. That is why this guide's rounds ran with the agent fenced in:
 With another agent, the rule is the same: give it Anzol's MCP (`/mcp`, turned on with `ANZOL_MCP_ENABLED=true`) and
 nothing else, and run it against an instance used only for the lab. The request the rounds used is the one in the
 [first round with MCP](#with-mcp-an-ai-agent-runs-the-round); the script without a seed is in
-[`mcp-e-ia.md`](mcp-and-ai.md#defense-lab).
+[`mcp-and-ai.md`](mcp-and-ai.md#defense-lab).
 
 To compare your agent with this guide's numbers, use seed 20261123: with the same seed and the same catalog, the waves
 come out the same, apart from the timestamps. Without a seed, the server draws one and it shows up in the report.

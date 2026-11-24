@@ -24,7 +24,7 @@ E um laboratório de defesa mede o que o seu script ou agente de IA barra quando
 [![Rodar local com Docker](https://img.shields.io/badge/Rodar_local_com_Docker-1B5A68?style=for-the-badge&logo=docker&logoColor=white)](#início-rápido)
 [![Rodar uma rodada de defesa](https://img.shields.io/badge/Rodar_uma_rodada_de_defesa-7A3E62?style=for-the-badge)](#laboratório-de-defesa-a-assinatura-confere-e-mesmo-assim-é-ataque)
 
-[API](docs/api.md) · [CLI](docs/cli.md) · [MCP e IA](docs/mcp-e-ia.md) · [Laboratório de defesa](docs/laboratorio-defesa.md) · [Todas as docs](docs/README.md) · [Glossário](docs/glossario.md)
+[API](docs/api.md) · [CLI](docs/cli.md) · [MCP e IA](docs/mcp-e-ia.md) · [Laboratório de defesa](docs/laboratorio-defesa.md) · [Todas as docs](docs/README.md) · [Glossário](docs/glossario.md) · [Solução de problemas](docs/solucao-de-problemas.md)
 
 </div>
 
@@ -104,9 +104,9 @@ URLs e as mensagens.
 | O quê | Em uma linha | Detalhe |
 |---|---|---|
 | Captura em tempo real | Método, caminho, cabeçalhos, query e corpo de cada requisição, com busca, filtros e Compare | [API](docs/api.md) |
-| Regras de resposta | Status, cabeçalhos e corpo por método, caminho, query, cabeçalho ou corpo; template e cenários (falha 2×, depois 200) | [Regras](docs/api.md#regras-de-resposta) |
+| Regras de resposta | Status, cabeçalhos e corpo por método, caminho, query, cabeçalho ou corpo; template e cenários (falha 3×, depois 200) | [Regras](docs/api.md#regras-de-resposta) · [Cenários](docs/api.md#cenários) |
 | Injeção de falhas | Atraso, conexão reiniciada, conexão presa, corpo cortado, por sorteio e por janela de tempo; na entrega ao seu app, pela CLI ou pelo reenvio | [Falhas](docs/api.md#atrasos-e-falhas-de-rede) · [CLI](docs/cli.md#falhas-na-entrega-listen-e-replay) |
-| Assinatura HMAC | Stripe, GitHub, Shopify, Slack e HMAC genérico (SHA-1, SHA-256, SHA-512), com o motivo de cada falha e quem corrige | [Assinatura](docs/api.md#verificação-de-assinatura) |
+| Assinatura HMAC | Stripe, GitHub, Shopify, Slack e HMAC genérico (SHA-1, SHA-256, SHA-512), com o motivo de cada falha e quem corrige | [Assinatura](docs/api.md#verificação-de-assinatura) · [O que fazer](docs/solucao-de-problemas.md#assinatura-schema-e-decifra) |
 | Schema | JSON Schema 2020-12 em cada mensagem, usável nas regras | [Schema](docs/api.md#validação-de-schema) |
 | Decifra de atributo (E2EE) | A URL abre um atributo cifrado pelo remetente e confere quem o assinou; laboratório com 27 cenários prontos | [Decifra](docs/api.md#decifra-de-atributo-e2ee) |
 | Laboratório de defesa | 32 requisições com gabarito, 14 delas ataques (integridade, remetente comprometido, injeção de prompt); mede o que o seu script ou agente detecta, barra e obedece | [Guia](docs/laboratorio-defesa.md) · [API](docs/api.md#laboratório-de-defesa) |
@@ -321,7 +321,7 @@ diz ao CI se passou. Todos os comandos e opções em [`docs/cli.md`](docs/cli.md
 `/openapi.yaml` e `/openapi.json`; o contrato caixa-preta que as garante, em
 [`tests/contract/README.md`](tests/contract/README.md).
 
-**MCP**: com `ANZOL_MCP_ENABLED=true` (ligado no compose), o app é um servidor [MCP](https://modelcontextprotocol.io)
+**MCP**: com `ANZOL_MCP_ENABLED=true` (desligado no padrão; veja [como ligar](docs/operacao.md#ligar-no-compose)), o app é um servidor [MCP](https://modelcontextprotocol.io)
 em `/mcp` com 23 ferramentas sobre a mesma API ([detalhes](docs/mcp-e-ia.md#mcp)):
 
 ```bash

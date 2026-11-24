@@ -52,7 +52,7 @@ por mensagens" e "Buscar mensagens": é a mesma coisa. Na API o campo é `reques
 | Regra de resposta | Condição mais resposta: se a requisição casa, a URL responde com o status, os cabeçalhos e o corpo da regra | `GET`/`PUT /token/{id}/rules`; `get_rules`, `set_rules`; `anzol rules pull`/`push` | stub ou mapping de servidor de mock, no estilo do WireMock |
 | Condição (`match`) | A parte da regra que diz quando ela vale: método, caminho, query, cabeçalho, corpo, assinatura, schema ou decifra | `match` | matcher |
 | Quase acerto | A regra que chegou mais perto de casar, com a condição que falhou | `near_miss`; `closest:` na CLI | near miss |
-| Cenário (de regra) | Estado que faz a mesma regra responder diferente a cada chamada, como "falha duas vezes, depois 200" | `scenario {name, requiredState, newState}`; `/token/{id}/scenarios` | Scenarios do WireMock; todo cenário começa em `Started` |
+| Cenário (de regra) | Estado que faz a mesma regra responder diferente a cada chamada, como "falha três vezes, depois 200" | `scenario {name, requiredState, newState}`; `/token/{id}/scenarios` | Scenarios do WireMock; todo cenário começa em `Started` |
 | Template | Corpo de resposta montado com dados da requisição | `response.template` | Handlebars |
 | Falha injetada | A URL falha de propósito: atrasa, reinicia a conexão, prende a conexão ou corta o corpo | `response.delay`, `response.fault`, `response.dribble` | injeção de falhas; fault; chaos |
 | Conexão presa | A conexão fica aberta sem resposta, ou para depois dos cabeçalhos. Na tela: "Trava" e "Parada depois dos cabeçalhos" | `fault: "hang"`, `fault: "stall_after_headers"` | timeout do lado do servidor |
