@@ -82,7 +82,7 @@ What arrives at the URL also has two names: the screen and the README say **requ
 |---|---|---|---|
 | Read secret | The URL's password: without it nobody reads the requests or changes the settings. Capture stays open | `read_secret`; `X-Anzol-Secret` header; `--read-secret` | API key |
 | Read-only link | A public address that shows one request, with an expiry and with sensitive values hidden | `POST …/request/{requestId}/share`; `GET /share/{sid}` | share link |
-| Masking | Sensitive values replaced by `[redacted]` in the read-only link. On the screen: "Hide sensitive values" | `redact` | data redaction |
+| Masking | In the read-only link, the URL's UUID is always removed. Sensitive values become `[redacted]` when `redact` is on, which is the default. On the screen: "Hide sensitive values" | `redact` | data redaction |
 | Isolated capture | A URL's response opens in the browser without reaching the Anzol screen or API | `Content-Security-Policy: sandbox …` header | CSP sandbox |
 | Unlock cookie | Remembers in the browser that you already gave the read secret | `POST /token/{id}/unlock`, `…/lock` | session |
 

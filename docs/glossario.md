@@ -81,7 +81,7 @@ O que chega na URL também tem dois nomes: a tela e o README dizem **requisiçã
 |---|---|---|---|
 | Segredo de leitura | Senha da URL: sem ela ninguém lê as requisições nem muda a configuração. Capturar continua aberto | `read_secret`; cabeçalho `X-Anzol-Secret`; `--read-secret` | chave de API |
 | Link só-leitura | Endereço público que mostra uma requisição, com prazo e com os valores sensíveis escondidos | `POST …/request/{requestId}/share`; `GET /share/{sid}` | link de compartilhamento |
-| Máscara | Troca dos valores sensíveis por `[redacted]` no link só-leitura. Na tela: "Esconder valores sensíveis" | `redact` | redação de dados |
+| Máscara | No link só-leitura, o UUID da URL sai sempre. Os valores sensíveis viram `[redacted]` quando `redact` vale, que é o padrão. Na tela: "Esconder valores sensíveis" | `redact` | redação de dados |
 | Captura isolada | A resposta de uma URL abre no navegador sem alcançar a tela nem a API do Anzol | cabeçalho `Content-Security-Policy: sandbox …` | CSP sandbox |
 | Cookie de desbloqueio | Guarda no navegador que você já deu o segredo de leitura | `POST /token/{id}/unlock`, `…/lock` | sessão |
 
