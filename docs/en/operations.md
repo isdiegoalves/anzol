@@ -3,6 +3,13 @@
 [![English](https://img.shields.io/badge/English-1B5A68?style=flat-square)](operations.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-6B737C?style=flat-square)](../operacao.md)
 
+How to configure and keep an eye on the Anzol server you start with `docker-compose.yml`: variables, health and
+version, Redis memory and observability. This is a how-to page, with the variables table as reference, for whoever runs
+and maintains the server.
+
+**On this page:** [Configuration](#configuration) · [Health and version](#health-and-version) ·
+[Redis memory](#redis-memory) · [Observability](#observability)
+
 ## Configuration
 
 | Variable (`app` service) | Default | What it does |
@@ -18,8 +25,8 @@
 
 ### Turning things on in compose
 
-`docker-compose.yml` starts only the defaults in the table. To turn on outbound to the local network, MCP, local AI or
-OTLP export, create a `docker-compose.override.yml` next to it with the variables you want from this template and run
+`docker-compose.yml` starts only the defaults in the table. To turn on outbound to the local network, [MCP](glossary.md#agents-and-cli),
+[local AI](glossary.md#agents-and-cli) or OTLP export, create a `docker-compose.override.yml` next to it with the variables you want from this template and run
 `docker compose up -d` again. Compose loads that file on its own, and git ignores it:
 
 ```yaml
@@ -80,11 +87,16 @@ the app ready.
 
 Redis starts with `--maxmemory 1gb --maxmemory-policy noeviction`: when full, it refuses writes (the webhook responds
 `507 Insufficient Storage`) instead of deleting keys, so no token disappears and what is already stored stays readable.
+With [requests](glossary.md#capture) of ~15 KB, 1 GB holds about 60 thousand; `ANZOL_MAX_REQUESTS` and `auto_cleanup`
+limit each [URL](glossary.md#the-same-object-four-names).
+
 The web UI warns you: every URL's `GET /token/{id}/stream` sends the `storage` event with `"full": true` after the
-first 507, and with `"full": false` when a message is stored again and 30 s pass without another refusal. The warnings
-go out together with the heartbeat, at most one every 15 s, however many requests arrive. The app only knows there is
-space again when a write goes through: once memory is freed, the warning stays until the next message arrives, on any
-URL. With messages of ~15 KB, 1 GB holds about 60 thousand; `ANZOL_MAX_REQUESTS` and `auto_cleanup` limit each URL.
+first 507, and with `"full": false` when a request is stored again and 30 s pass without another refusal. The warnings
+go out together with the heartbeat, at most one every 15 s, however many requests arrive.
+
+The app only knows there is space again when a write goes through: once memory is freed, the warning stays until the
+next request arrives, on any URL.
+
 Changing Redis's `command` in the compose file recreates the container, and the data stays in the volume.
 
 ## Observability
@@ -92,11 +104,20 @@ Changing Redis's `command` in the compose file recreates the container, and the 
 With the `OTEL_*` variables from the [template above](#turning-things-on-in-compose), the app sends metrics, traces and logs over
 OTLP HTTP to a Grafana Alloy at `host.docker.internal:4318` (`service.name=anzol`, `deployment.environment=local`).
 Without them (the app's default, `docker-compose.yml`, the tests and `./ci.sh`) nothing is exported, and with Alloy down
-the app carries on as normal. Business metrics: `anzol_requests_captured_total` (by `method`, `status_class`, `rule`,
-`signature`, `schema` and `fault`, never with a token), `anzol_capture_duration_seconds`, `anzol_storage_full_total`,
-`anzol_cleanup_removed_total`, `anzol_sse_subscribers`, `anzol_wait_active` and `anzol_outbound_total` (replay and send,
-by `kind` and `outcome`: `2xx`…`5xx`, `blocked`, `error`; never with a URL or token), `anzol_ai_calls_total` and
-`anzol_ai_duration_seconds` (local AI, by `kind` `suggest`/`explain`, `outcome` `ok`/`invalid`/`error` and `model`;
-nothing from the prompt or the message). Each LLM call also becomes a Spring AI span. Each capture becomes a trace with
-the token in `span.anzol.token`, and the logs carry the `trace_id`. The dashboard and the Grafana import are in
-[`observability/`](../../observability/README.md) (in Portuguese).
+the app carries on as normal.
+
+Business metrics:
+
+- `anzol_requests_captured_total`, by `method`, `status_class`, `rule`, `signature`, `schema` and `fault`, never with a
+  token;
+- `anzol_capture_duration_seconds`, `anzol_storage_full_total`, `anzol_cleanup_removed_total`, `anzol_sse_subscribers`
+  and `anzol_wait_active`;
+- `anzol_outbound_total`: [replay](glossary.md#outbound-and-automation) and send, by `kind` and `outcome` (`2xx`…`5xx`,
+  `blocked`, `error`); never with a URL or token;
+- `anzol_ai_calls_total` and `anzol_ai_duration_seconds`: local AI, by `kind` `suggest`/`explain`, `outcome`
+  `ok`/`invalid`/`error` and `model`; nothing from the prompt or the message.
+
+Each LLM call also becomes a Spring AI span. Each capture becomes a trace with the token in `span.anzol.token`, and the
+logs carry the `trace_id`.
+
+The dashboard and the Grafana import are in [`observability/`](../../observability/README.md) (in Portuguese).

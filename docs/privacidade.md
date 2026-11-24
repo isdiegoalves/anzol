@@ -3,6 +3,14 @@
 [![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/privacy.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](privacidade.md)
 
+Quem lê o quê numa [URL](glossario.md#captura) do Anzol e o que protege os dados dela, a tela e a API: o
+[segredo de leitura](glossario.md#privacidade), os [links só-leitura](glossario.md#privacidade), a
+[captura isolada](glossario.md#privacidade) e a proteção contra DNS rebinding/CSRF. Para quem guarda dado real no
+Anzol. É página de explicação: diz também o porquê de cada proteção.
+
+**Nesta página:** [Privacidade](#privacidade) · [Links só-leitura](#links-só-leitura) ·
+[Proteção contra DNS rebinding/CSRF](#proteção-contra-dns-rebindingcsrf)
+
 ## Privacidade
 
 Quem tem o UUID de uma URL lê tudo dela. Com um **segredo de leitura**, ver e gerir a URL passa a exigir o segredo;
@@ -21,24 +29,33 @@ Limites (o modelo não tem contas de usuário):
 
 Toda resposta da captura `/{id}/...` — a resposta padrão da URL, a de uma regra e a da falha `malformed_chunk` — sai
 com `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups allow-modals`, **sem
-`allow-same-origin`**. Motivo: a tela, a API e a captura servem pelo mesmo endereço (`localhost:8084`), e a resposta
-de uma URL é conteúdo de quem a configurou (ou de quem conhece o UUID de uma URL aberta). Sem o sandbox, uma captura
-que responde HTML com `<script>` rodaria na origem da tela: leria o `localStorage` (os UUIDs de quem abre a página) e
-chamaria a API com o cookie de desbloqueio. Com ele, a página roda numa origem opaca: o script roda, formulários e
-pop-ups funcionam, mas nada da origem do app fica ao alcance. O cabeçalho vem depois dos cabeçalhos da regra e é
-acrescentado, não trocado: uma regra que define o próprio `Content-Security-Policy` fica com os dois, e o navegador
-aplica os dois. Clientes que não são navegador (CLI, SDKs, provedores) ignoram o cabeçalho.
+`allow-same-origin`**.
+
+Motivo: a tela, a API e a captura servem pelo mesmo endereço (`localhost:8084`), e a resposta de uma URL é conteúdo
+de quem a configurou (ou de quem conhece o UUID de uma URL aberta). Sem o sandbox, uma captura que responde HTML com
+`<script>` rodaria na origem da tela: leria o `localStorage` (os UUIDs de quem abre a página) e chamaria a API com o
+[cookie de desbloqueio](glossario.md#privacidade).
+
+Com o sandbox, a página roda numa origem opaca: o script roda, formulários e pop-ups funcionam, mas nada da origem do app
+fica ao alcance.
+
+O cabeçalho vem depois dos cabeçalhos da regra e é acrescentado, não trocado: uma regra que define o próprio
+`Content-Security-Policy` fica com os dois, e o navegador aplica os dois. Clientes que não são navegador (CLI, SDKs,
+provedores) ignoram o cabeçalho.
 
 ### Segredo de leitura
 
-`read_secret` (texto de 8 a 256 caracteres) no corpo do `POST /token` ou do `PUT /token/{id}`. Nunca é devolvido: o
-token ganha `"protected": true|false`. No `PUT`, **ausente mantém** o segredo (exceção deliberada à regra "campo
-ausente volta ao padrão": apagar a proteção por omissão seria perigoso), `null` remove e texto troca. Na query, 422.
-Remover é recusado (422 em `read_secret`) enquanto alguma mensagem da URL guardar o atributo decifrado (`decrypted`,
-ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)): sem o segredo, ele ficaria à vista de quem só tem a URL.
-Apague essas mensagens antes, ou mantenha o segredo.
+`read_secret` (texto de 8 a 256 caracteres) no corpo do `POST /token` ou do `PUT /token/{id}`. Na query, 422. Nunca é
+devolvido: o token ganha `"protected": true|false`.
 
-Sem acesso, **toda** rota `/token/{id}/...` (o token, `DELETE`, mensagens, raw, SSE, busca, wait, regras, cenários,
+No `PUT`, **ausente mantém** o segredo (exceção deliberada à regra "campo ausente volta ao padrão": apagar a proteção
+por omissão seria perigoso), `null` remove e texto troca.
+
+Remover é recusado (422 em `read_secret`) enquanto alguma requisição da URL guardar o atributo decifrado (`decrypted`,
+ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)): sem o segredo, ele ficaria à vista de quem só tem a URL.
+Apague essas requisições antes, ou mantenha o segredo.
+
+Sem acesso, **toda** rota `/token/{id}/...` (o token, `DELETE`, requisições, raw, SSE, busca, wait, regras, cenários,
 saídas, replay, send, IA, links) responde `401 {"error":"This URL is protected","protected":true}`; só `unlock`, `lock` e
 `jwks.json` (as chaves públicas de cifra, que não são segredo) respondem. A captura `/{id}/...` não muda. Acesso é um destes:
 
@@ -47,20 +64,30 @@ saídas, replay, send, IA, links) responde `401 {"error":"This URL is protected"
 
 No Redis fica só o PBKDF2-HMAC-SHA256 (sal aleatório de 16 bytes, 210.000 iterações) e `secret_version`, que muda a
 cada troca; comparação em tempo constante. Acertos ficam 5 minutos em memória (o CLI não paga o PBKDF2 em toda
-chamada). **10 segredos errados por minuto por URL** (unlock e cabeçalho somados; o `read_secret` do MCP conta à parte, para
-um agente errando não travar a tela e o CLI) → `429` com `Retry-After`
-até o minuto acabar, **também para o segredo certo** (senão o 429 do errado e o 200 do certo diriam qual é o certo);
-o cookie não passa por esse limite. O segredo não aparece em log, resposta, métrica nem erro. Token gravado antes do
-segredo abre como não protegido.
+chamada).
+
+**10 segredos errados por minuto por URL** (unlock e cabeçalho somados; o `read_secret` do MCP conta à parte, para
+um agente errando não travar a tela e o CLI) → `429` com `Retry-After` até o minuto acabar, **também para o segredo
+certo** (senão o 429 do errado e o 200 do certo diriam qual é o certo); o cookie não passa por esse limite.
+
+O segredo não aparece em log, resposta, métrica nem erro. Token gravado antes do segredo abre como não protegido.
 
 ### O que fica no Redis
 
-Em claro, com a URL: o segredo HMAC (`signature.secret`), as chaves privadas de cifra (`e2ee_keys[].jwk`, campo
-`d`), a privada do remetente de teste do laboratório e o valor decifrado de cada mensagem (`decrypted`). Com hash
-(PBKDF2): o segredo de leitura. O segredo de leitura protege a leitura pela API e pela tela, não o armazenamento:
-quem tem o Redis ou o `dump.rdb` do volume `anzol_redis-data` tem tudo isso. O Anzol não cifra o Redis. As chaves de
-cifra ficam na URL até alguém apagá-las (`DELETE /token/{id}/keys/{kid}`): desligar a decifra ou remover o segredo
-não as remove.
+Em claro, com a URL:
+
+- o segredo HMAC (`signature.secret`);
+- as chaves privadas de cifra (`e2ee_keys[].jwk`, campo `d`);
+- a privada do remetente de teste do laboratório;
+- o valor decifrado de cada requisição (`decrypted`).
+
+Com hash (PBKDF2): o segredo de leitura.
+
+O segredo de leitura protege a leitura pela API e pela tela, não o armazenamento: quem tem o Redis ou o `dump.rdb` do
+volume `anzol_redis-data` tem tudo isso. O Anzol não cifra o Redis.
+
+As chaves de cifra ficam na URL até alguém apagá-las (`DELETE /token/{id}/keys/{kid}`): desligar a decifra ou remover
+o segredo não as remove.
 
 ### Cookie de desbloqueio
 
@@ -76,10 +103,13 @@ cookie; o prazo nunca passa de 30 dias (encurta menos de um dia). Cookies do for
 valer: quem os tinha desbloqueia de novo.
 
 A chave do servidor são 32 bytes aleatórios em `anzol:server-key` no Redis, criados no primeiro uso com `SET NX`
-(duas instâncias ficam com a mesma) e sem TTL: sobrevive a restart. Trocar ou remover o segredo muda a versão, então
-os cookies antigos param de valer (inclusive se o segredo for definido de novo), as conexões SSE e esperas abertas
-da URL são fechadas (quem reconectar passa de novo pelo acesso) e **todos os links só-leitura da URL são revogados**
-(um link é acesso; quem troca o segredo quer cortar quem tinha).
+(duas instâncias ficam com a mesma) e sem TTL: sobrevive a restart.
+
+Trocar ou remover o segredo muda a versão, então:
+
+- os cookies antigos param de valer (inclusive se o segredo for definido de novo);
+- as conexões SSE e esperas abertas da URL são fechadas (quem reconectar passa de novo pelo acesso);
+- **todos os links só-leitura da URL são revogados** (um link é acesso; quem troca o segredo quer cortar quem tinha).
 
 ### CLI e MCP
 
@@ -100,7 +130,7 @@ ali).
 
 ## Links só-leitura
 
-Uma mensagem pode ser compartilhada por um link que não dá acesso a mais nada da URL (nem com ela protegida):
+Uma requisição pode ser compartilhada por um link que não dá acesso a mais nada da URL (nem com ela protegida):
 
 ```bash
 curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: application/json' \
@@ -111,31 +141,47 @@ curl -X POST localhost:8084/token/<uuid>/request/<rid>/share -H 'Content-Type: a
 - `expires_in`: `1h`, `1d`, `7d` (padrão) ou `30d`; `redact`: `true` (padrão) ou `false`. Outro valor: 422.
 - `GET /token/{id}/shares` lista os ativos; `DELETE /token/{id}/shares/{sid}` revoga (`204`; link de outra URL, 404).
   No máximo 50 ativos por URL (422 acima).
-- `GET /share/{sid}` é público: a mensagem como `GET /token/{id}/request/{rid}` a devolve, mais `shared_at` e
+- `GET /share/{sid}` é público: a requisição como `GET /token/{id}/request/{rid}` a devolve, mais `shared_at` e
   `expires_at`, sem o atributo decifrado (`decrypted`; ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)) e
-  **sempre sem o UUID da URL** (com ou sem `redact`): sem `token_id`, e com toda ocorrência do UUID no
-  JSON inteiro trocada por `[redacted]` (`http://localhost:8084/[redacted]/caminho?x=1`) — na `url`, nos cabeçalhos
-  (`referer`), na query, no `request` e no corpo (o ping do GitHub traz a própria URL). A máscara acha o UUID às
-  claras (com ou sem hífens, em maiúsculas ou minúsculas), com caracteres em `%hh` (`%2D` no lugar do hífen) ou em
-  escape de JSON (`\u002d`), e dentro de um texto em base64 ou base64url de uma camada. Não acha o UUID codificado em
-  mais de uma camada (`%252D`, base64 de base64), em entidades HTML, partido entre campos, em hash ou num corpo
-  comprimido: ela evita que o endereço vaze por acidente, não que um remetente o ponha na mensagem de propósito. O
-  UUID é do servidor, não dado do remetente: do corpo, só ele sai. Expirado, revogado, de mensagem apagada, de URL
-  apagada ou inexistente: o mesmo `404`.
+  **sempre sem o UUID da URL** (com ou sem `redact`). Expirado, revogado, de requisição apagada, de URL apagada ou
+  inexistente: o mesmo `404`.
 - Definir, trocar ou remover o segredo de leitura da URL revoga todos os links dela. O link guarda a `secret_version`
   da URL na criação e só abre enquanto ela for a atual: um link criado no mesmo instante da troca também morre.
-- `redact=true` troca por `"[redacted]"` os valores dos cabeçalhos `authorization`, `proxy-authorization`, `cookie`,
-  `set-cookie`, `x-api-key`, `x-anzol-secret`, dos cabeçalhos cujo nome contém `token`, `key`, `secret`, `password`,
-  `auth`, `session`, `credential`, `jwt`, `bearer`, `passwd` ou `pwd` (sem diferenciar maiúsculas: `X-Auth-Token`,
-  `X-Api-Keys`, `X-Session-Id`) e do cabeçalho de assinatura do provedor
-  configurado na URL, e os
-  valores de query cujo nome contém `token`, `key`, `secret`, `password` ou `signature` (sem diferenciar maiúsculas),
-  também dentro da `url` gravada. Os `php-auth-user`/`php-auth-pw` (o `Authorization: Basic` decodificado que a
-  mensagem grava), os campos de formulário de nome sensível e as frases do `near_miss` que citam esses valores também
-  saem mascarados. **O corpo não é mascarado.**
 
 O id são 128 bits aleatórios em base62; no Redis, `share:{sid}` com TTL igual à expiração e o índice
 `token:{uuid}:shares`, apagados junto com a URL.
+
+### O UUID da URL
+
+Com ou sem `redact`, a resposta do `GET /share/{sid}` sai sem `token_id`, e com toda ocorrência do UUID no JSON
+inteiro trocada por `[redacted]`
+(`http://localhost:8084/[redacted]/caminho?x=1`) — na `url`, nos cabeçalhos (`referer`), na query, no `request` e no
+corpo (o ping do GitHub traz a própria URL). O UUID é do servidor, não dado do remetente: do corpo, só ele sai.
+
+A máscara acha o UUID:
+
+- às claras (com ou sem hífens, em maiúsculas ou minúsculas);
+- com caracteres em `%hh` (`%2D` no lugar do hífen) ou em escape de JSON (`\u002d`);
+- dentro de um texto em base64 ou base64url de uma camada.
+
+Não acha o UUID codificado em mais de uma camada (`%252D`, base64 de base64), em entidades HTML, partido entre
+campos, em hash ou num corpo comprimido: ela evita que o endereço vaze por acidente, não que um remetente o ponha na
+requisição de propósito.
+
+### Valores sensíveis (`redact`)
+
+`redact=true` troca por `"[redacted]"` os valores:
+
+- dos cabeçalhos `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `x-api-key`, `x-anzol-secret`;
+- dos cabeçalhos cujo nome contém `token`, `key`, `secret`, `password`, `auth`, `session`, `credential`, `jwt`,
+  `bearer`, `passwd` ou `pwd` (sem diferenciar maiúsculas: `X-Auth-Token`, `X-Api-Keys`, `X-Session-Id`);
+- do cabeçalho de assinatura do provedor configurado na URL;
+- de query cujo nome contém `token`, `key`, `secret`, `password` ou `signature` (sem diferenciar maiúsculas), também
+  dentro da `url` gravada.
+
+Os `php-auth-user`/`php-auth-pw` (o `Authorization: Basic` decodificado que a requisição grava), os campos de
+formulário de nome sensível e as frases do `near_miss` que citam esses valores também saem mascarados. **O corpo não
+é mascarado.**
 
 ## Proteção contra DNS rebinding/CSRF
 
@@ -147,18 +193,20 @@ as rotas de gestão (`/token`, `/token/...`, `/share/...`) e o `/mcp` conferem:
 
 - `Host` fora da lista → `403 {"error":"host not allowed"}` (nome sem porta na lista casa qualquer porta);
 - nos métodos que mudam estado (POST, PUT, PATCH, DELETE, inclusive por `X-HTTP-Method-Override`), `Origin` presente
-  que não seja deste servidor → `403 {"error":"origin not allowed"}`. Passa o `Origin` na **mesma porta do `Host`** com
-  nome da lista (a própria tela, também aberta por outro nome do loopback, ou pelo proxy do `ng serve`, que mantém o
-  `Host`) ou com `nome:porta` escrito na lista (ex.: `localhost:4200` para uma tela servida noutra porta). Outra porta
-  do mesmo nome é outra origem. No `/mcp`, o `Origin` é conferido em todo método, como o transporte Streamable HTTP
-  exige;
+  que não seja deste servidor → `403 {"error":"origin not allowed"}`.
+
+  Passa o `Origin` na **mesma porta do `Host`** com nome da lista (a própria tela, também aberta por outro nome do
+  loopback, ou pelo proxy do `ng serve`, que mantém o `Host`) ou com `nome:porta` escrito na lista (ex.:
+  `localhost:4200` para uma tela servida noutra porta). Outra porta do mesmo nome é outra origem. No `/mcp`, o
+  `Origin` é conferido em todo método, como o transporte Streamable HTTP exige;
 - `_method` num POST (campo de formulário ou query, que transformaria o POST de um `<form>` em PUT ou DELETE) →
   `403 {"error":"_method not allowed"}`, com ou sem `Origin`;
 - corpo de formulário (`application/x-www-form-urlencoded`, `multipart/form-data`, `text/plain`, os que um `<form>`
   manda sem preflight) com `Origin` ou com o cookie de desbloqueio `anzol_access` (que só um navegador manda sozinho,
-  mesmo quando omite o `Origin`) → `403 {"error":"form not allowed"}`. A tela só manda JSON. Sem `Origin` e sem o
-  cookie (CLI, curl, scripts) o formulário continua aceito, como no app antigo. É 403, e não 415, porque o tipo é aceito: o que se
-  recusa é o formulário vindo de um navegador.
+  mesmo quando omite o `Origin`) → `403 {"error":"form not allowed"}`. A tela só manda JSON.
+
+  Sem `Origin` e sem o cookie (CLI, curl, scripts) o formulário continua aceito, como no app antigo. É 403, e não 415,
+  porque o tipo é aceito: o que se recusa é o formulário vindo de um navegador.
 
 Cliente sem `Origin` (CLI, curl, agentes) passa pelo `Host`. A captura `/{id}/...` e os arquivos da tela não conferem
 nada (a captura aceita formulário, `_method` e qualquer `Origin`). A rota é reconhecida como o Spring a casa:

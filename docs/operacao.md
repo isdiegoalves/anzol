@@ -3,6 +3,13 @@
 [![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/operations.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](operacao.md)
 
+Como configurar e acompanhar o servidor do Anzol que você sobe com o `docker-compose.yml`: variáveis, saúde e versão,
+memória do Redis e observabilidade. É uma página de como fazer, com a tabela de variáveis como referência, para quem
+roda e mantém o servidor.
+
+**Nesta página:** [Configuração](#configuração) · [Saúde e versão](#saúde-e-versão) ·
+[Memória do Redis](#memória-do-redis) · [Observabilidade](#observabilidade)
+
 ## Configuração
 
 | Variável (serviço `app`) | Padrão | O que faz |
@@ -18,8 +25,8 @@
 
 ### Ligar no compose
 
-O `docker-compose.yml` sobe só o padrão da tabela. Para ligar a saída para a rede local, o MCP, a IA local ou a
-exportação OTLP, crie um `docker-compose.override.yml` ao lado dele com as variáveis que quiser deste modelo e rode
+O `docker-compose.yml` sobe só o padrão da tabela. Para ligar a saída para a rede local, o [MCP](glossario.md#agentes-e-cli),
+a [IA local](glossario.md#agentes-e-cli) ou a exportação OTLP, crie um `docker-compose.override.yml` ao lado dele com as variáveis que quiser deste modelo e rode
 `docker compose up -d` de novo. O compose carrega esse arquivo sozinho, e o git o ignora:
 
 ```yaml
@@ -77,25 +84,39 @@ pronto.
 
 ## Memória do Redis
 
-O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o
-webhook responde `507 Insufficient Storage`) em vez de apagar chaves, então nenhum token some e o que já está gravado
-continua legível. A tela avisa: o `GET /token/{id}/stream` de toda URL manda o evento `storage` com `"full": true`
-depois do primeiro 507, e com `"full": false` quando uma mensagem volta a ser gravada e 30 s se passam sem outra
-recusa. Os avisos saem junto do heartbeat, no máximo um a cada 15 s, por mais pedidos que cheguem. O app só sabe que
-há espaço de novo quando uma gravação passa: liberada a memória, o aviso fica até a próxima mensagem chegar, em
-qualquer URL. Com mensagens de ~15 KB, 1 GB guarda cerca de 60 mil; `ANZOL_MAX_REQUESTS` e `auto_cleanup` limitam
-cada URL. Mudar o `command` do Redis no compose recria o container, e os dados ficam no volume.
+O Redis sobe com `--maxmemory 1gb --maxmemory-policy noeviction`: cheio, recusa gravação (o webhook responde
+`507 Insufficient Storage`) em vez de apagar chaves, então nenhum token some e o que já está gravado continua legível.
+Com [requisições](glossario.md#captura) de ~15 KB, 1 GB guarda cerca de 60 mil; `ANZOL_MAX_REQUESTS` e `auto_cleanup`
+limitam cada [URL](glossario.md#o-mesmo-objeto-quatro-nomes).
+
+A tela avisa: o `GET /token/{id}/stream` de toda URL manda o evento `storage` com `"full": true` depois do primeiro
+507, e com `"full": false` quando uma requisição volta a ser gravada e 30 s se passam sem outra recusa. Os avisos saem
+junto do heartbeat, no máximo um a cada 15 s, por mais requisições que cheguem.
+
+O app só sabe que há espaço de novo quando uma gravação passa: liberada a memória, o aviso fica até a próxima
+requisição chegar, em qualquer URL.
+
+Mudar o `command` do Redis no compose recria o container, e os dados ficam no volume.
 
 ## Observabilidade
 
 Com as variáveis `OTEL_*` do [modelo acima](#ligar-no-compose), o app manda métricas, traces e logs por OTLP HTTP
 para um Grafana Alloy em `host.docker.internal:4318` (`service.name=anzol`, `deployment.environment=local`). Sem elas
 (o padrão do app, o `docker-compose.yml`, os testes e o `./ci.sh`) nada é exportado, e com o Alloy fora do ar o app
-segue normal. Métricas de negócio: `anzol_requests_captured_total` (por `method`,
-`status_class`, `rule`, `signature`, `schema` e `fault`, nunca com token), `anzol_capture_duration_seconds`,
-`anzol_storage_full_total`, `anzol_cleanup_removed_total`, `anzol_sse_subscribers`, `anzol_wait_active` e
-`anzol_outbound_total` (replay e send, por `kind` e `outcome`: `2xx`…`5xx`, `blocked`, `error`; nunca com URL ou token),
-`anzol_ai_calls_total` e `anzol_ai_duration_seconds` (IA local, por `kind` `suggest`/`explain`, `outcome`
-`ok`/`invalid`/`error` e `model`; nada do prompt nem da mensagem). Cada chamada ao LLM vira também um span do Spring AI.
-Cada captura vira um trace com o token em `span.anzol.token`, e os logs levam o `trace_id`. O dashboard e a
-importação no Grafana estão em [`observability/`](../observability/README.md).
+segue normal.
+
+Métricas de negócio:
+
+- `anzol_requests_captured_total`, por `method`, `status_class`, `rule`, `signature`, `schema` e `fault`, nunca com
+  token;
+- `anzol_capture_duration_seconds`, `anzol_storage_full_total`, `anzol_cleanup_removed_total`,
+  `anzol_sse_subscribers` e `anzol_wait_active`;
+- `anzol_outbound_total`: [replay](glossario.md#saída-e-automação) e send, por `kind` e `outcome` (`2xx`…`5xx`,
+  `blocked`, `error`); nunca com URL ou token;
+- `anzol_ai_calls_total` e `anzol_ai_duration_seconds`: IA local, por `kind` `suggest`/`explain`, `outcome`
+  `ok`/`invalid`/`error` e `model`; nada do prompt nem da mensagem.
+
+Cada chamada ao LLM vira também um span do Spring AI. Cada captura vira um trace com o token em `span.anzol.token`, e
+os logs levam o `trace_id`.
+
+O dashboard e a importação no Grafana estão em [`observability/`](../observability/README.md).

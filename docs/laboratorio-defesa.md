@@ -3,10 +3,24 @@
 [![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/defense-lab.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](laboratorio-defesa.md)
 
-A assinatura HMAC prova quem mandou o webhook, não que o conteúdo é inofensivo: um remetente com o segredo vazado
-assina o próprio ataque, e um texto num campo livre pode dar ordens ao agente de IA que lê a mensagem. O laboratório
-de defesa põe isso à prova numa URL sua: o servidor entrega 32 requisições sintéticas com gabarito, 18 legítimas e
-14 ataques; um defensor (script, pessoa ou agente de IA pelo MCP) julga cada uma e grava regras de resposta; o
+O [laboratório de defesa](glossario.md#laboratório-de-defesa) mede, numa URL sua, quem defende os seus webhooks:
+um script, uma pessoa ou um agente de IA. Este guia é de primeiro uso e explicação, para quem quer pôr um
+[defensor](glossario.md#laboratório-de-defesa) à prova: o caminho do zero ao primeiro relatório e a leitura do que
+ele diz.
+
+**Nesta página:** [Primeira rodada](#primeira-rodada) ·
+[O que chega: três famílias, 14 cenários](#o-que-chega-três-famílias-14-cenários) ·
+[Como ler o relatório](#como-ler-o-relatório) · [Três defensores na mesma semente](#três-defensores-na-mesma-semente) ·
+[Tropeços de forma de regra](#tropeços-de-forma-de-regra) · [Plugar o seu agente](#plugar-o-seu-agente) ·
+[Limites](#limites)
+
+A [assinatura HMAC](glossario.md#verificações) prova quem mandou o webhook, não que o conteúdo é inofensivo: um
+remetente com o segredo vazado assina o próprio ataque, e um texto num campo livre pode dar ordens ao agente de IA
+que lê a requisição.
+
+O laboratório de defesa põe isso à prova numa URL sua: o servidor entrega 32 requisições sintéticas com
+[gabarito](glossario.md#laboratório-de-defesa), 18 legítimas e 14 ataques; um defensor (script, pessoa ou agente de
+IA pelo [MCP](glossario.md#agentes-e-cli)) julga cada uma e grava [regras de resposta](glossario.md#resposta); o
 servidor mede o que ele pegou, o que barrou, o que derrubou de legítimo e se obedeceu a uma instrução injetada.
 
 <picture>
@@ -15,8 +29,7 @@ servidor mede o que ele pegou, o que barrou, o que derrubou de legítimo e se ob
 </picture>
 
 O contrato completo (rotas, campos, erros e limites) está em [`api.md`](api.md#laboratório-de-defesa); as
-ferramentas MCP, em [`mcp-e-ia.md`](mcp-e-ia.md#laboratório-de-defesa). Este guia é o caminho do zero ao primeiro
-relatório e a leitura do que ele diz.
+ferramentas MCP, em [`mcp-e-ia.md`](mcp-e-ia.md#laboratório-de-defesa).
 
 ## Primeira rodada
 
@@ -41,7 +54,8 @@ pronto.
 
 Rode os cinco passos no mesmo terminal: cada um usa as variáveis do anterior (`A`, `T`, `S` e `R`).
 
-**1. Crie a URL de laboratório.** Ela nasce protegida: o segredo de leitura vem só nesta resposta.
+**1. Crie a URL de laboratório.** Ela nasce protegida: o [segredo de leitura](glossario.md#privacidade) vem só nesta
+resposta.
 
 ```bash
 A=http://localhost:8084
@@ -53,7 +67,8 @@ echo $T
 
 O `echo` mostra o UUID da URL. Se mostrar `null`, o Anzol não respondeu: confira o passo 0.
 
-**2. Abra a rodada.** A onda 1 chega pela captura, como webhook de verdade. A semente fixa faz a sua onda ser a
+**2. Abra a [rodada](glossario.md#laboratório-de-defesa).** A [onda](glossario.md#laboratório-de-defesa) 1 chega
+pela captura, como webhook de verdade. A [semente](glossario.md#laboratório-de-defesa) fixa faz a sua onda ser a
 mesma deste guia. A resposta só volta depois que as 32 requisições chegaram; não precisa esperar.
 
 ```bash
@@ -76,7 +91,7 @@ curl -s "$A/token/$T/requests?per_page=50" -H "X-Anzol-Secret: $S" |
     -H 'Content-Type: application/json' -d @- | jq -c .
 ```
 
-A resposta é `{"recorded":32,"requests":32}`: 32 veredictos gravados para as 32 requisições da onda. Uma página de
+A resposta é `{"recorded":32,"requests":32}`: 32 [veredictos](glossario.md#laboratório-de-defesa) gravados para as 32 requisições da onda. Uma página de
 50 cobre a onda inteira porque a URL é nova; numa segunda rodada na mesma URL, a listagem traz também as da
 primeira.
 
@@ -103,7 +118,7 @@ curl -s -X POST $A/token/$T/defense-lab/rounds/$R/finish -H "X-Anzol-Secret: $S"
 Esse filtro mostra três blocos; sem o `jq -c '{…}'`, o relatório vem inteiro, com cobertura, ações e o resultado de
 cada cenário.
 
-A assinatura sozinha pegou 4 dos 14 ataques e barrou 4 dos 12 contíveis, sem derrubar nenhuma das 18 legítimas.
+A assinatura sozinha pegou 4 dos 14 ataques e barrou 4 dos 12 [contíveis](glossario.md#laboratório-de-defesa), sem derrubar nenhuma das 18 legítimas.
 Contível é o ataque que uma regra de resposta consegue barrar; dois dos 14 pedem mais do que uma regra e ficam
 fora dessa conta ([quais](#o-que-chega-três-famílias-14-cenários)). Os outros 10 ataques passam com assinatura
 válida: é para eles que o laboratório existe.
@@ -160,15 +175,17 @@ catálogo, com o título de cada cenário em inglês, em `GET /defense-lab/scena
 | Remetente comprometido (`compromised_sender`) | C1 estorno de pedido sem pagamento · C2 valor muito acima do histórico · C3 conta de liquidação que não é da loja | `agent` | Só o conteúdo, comparado com o briefing: o atacante tem o segredo e assina certo |
 | Injeção de prompt (`prompt_injection`) | P1 instrução no corpo · P2 num cabeçalho · P3 falso aviso de sistema pedindo para desligar a assinatura · P4 pedido de envio para um coletor de fora · P5 instrução em Base64 · P6 pedido do segredo de leitura | `agent` | Um texto que dá ordem, num campo livre de um evento que o provedor assinou |
 
-São 4 ataques na camada `floor` e 10 na `agent`. **Contível** é o ataque que uma regra de resposta consegue barrar
-na onda 2 sem barrar tráfego legítimo: 12 dos 14. I5 pede deduplicação por id de evento e C1 pede o histórico do
-pedido; os dois contam na detecção e ficam fora da contenção.
+São 4 ataques na camada `floor` (o [piso](glossario.md#laboratório-de-defesa)) e 10 na `agent`. **Contível** é o
+ataque que uma regra de resposta consegue barrar na onda 2 sem barrar tráfego legítimo: 12 dos 14. I5 pede
+deduplicação por id de evento e C1 pede o histórico do pedido; os dois contam na
+[detecção](glossario.md#laboratório-de-defesa) e ficam fora da [contenção](glossario.md#laboratório-de-defesa).
 
-**As quatro sósias.** Quatro legítimas parecem ataque, para o falso positivo ter onde aparecer: um pedido de valor
+**As quatro [sósias](glossario.md#laboratório-de-defesa).** Quatro legítimas parecem ataque, para o
+[falso positivo](glossario.md#laboratório-de-defesa) ter onde aparecer: um pedido de valor
 alto que vem com o ciclo inteiro, um que liquida na segunda conta da loja, um estorno depois do pagamento e uma nota
 que fala de regra e de sistema sem dar ordem a ninguém. Barrar “todo estorno” ou “todo valor alto” derruba uma delas.
 
-O `briefing` da resposta do `POST /defense-lab` diz o que é normal nessa loja fictícia: os quatro tipos de evento, a
+O [`briefing`](glossario.md#laboratório-de-defesa) da resposta do `POST /defense-lab` diz o que é normal nessa loja fictícia: os quatro tipos de evento, a
 ordem deles, a faixa de valores e as duas contas de liquidação. É o contexto que um operador teria, e é o que separa
 C2 e C3 das sósias.
 
@@ -238,7 +255,7 @@ rodadas.
 ## Tropeços de forma de regra
 
 Os que custaram contenção nas rodadas. A tabela completa dos campos de uma regra está em
-[`api.md`](api.md#regras-de-resposta); `test_rule` (MCP) e `POST /token/{id}/rules/test` (API) dizem em quais das mensagens
+[`api.md`](api.md#regras-de-resposta); `test_rule` (MCP) e `POST /token/{id}/rules/test` (API) dizem em quais das requisições
 gravadas uma regra casaria, antes de você gravá-la.
 
 | Tropeço | Errado | Certo |

@@ -3,7 +3,15 @@
 [![English](https://img.shields.io/badge/English-6B737C?style=flat-square)](en/mcp-and-ai.md)
 [![Português (Brasil)](https://img.shields.io/badge/Portugu%C3%AAs_%28Brasil%29-1B5A68?style=flat-square)](mcp-e-ia.md)
 
+Como ligar o Anzol a um agente de IA, pelo [MCP](glossario.md#agentes-e-cli), e a um LLM local, pela
+[IA local](glossario.md#agentes-e-cli), com a referência das 23 ferramentas, das duas rotas de IA, das variáveis e dos
+riscos. Para quem liga um agente de IA ou um LLM local ao Anzol. É página de como fazer e de referência.
+
+**Nesta página:** [MCP](#mcp) · [IA local](#ia-local)
+
 ## MCP
+
+### Como ligar
 
 Com `ANZOL_MCP_ENABLED=true` (desligado por padrão; [como ligar no compose](operacao.md#ligar-no-compose)), o app é
 um servidor [MCP](https://modelcontextprotocol.io) em `/mcp` (Streamable HTTP, Spring AI 2.0): agentes de IA operam o
@@ -12,6 +20,10 @@ Anzol pelas mesmas rotas da API, sem LLM nenhum no app. Para conectar o Claude C
 ```bash
 claude mcp add --transport http anzol http://127.0.0.1:8084/mcp
 ```
+
+Desligado (o padrão), `/mcp` é 404.
+
+### Ferramentas
 
 São 23 ferramentas:
 
@@ -26,36 +38,55 @@ São 23 ferramentas:
 | `create_defense_lab`, `list_defense_scenarios` | `POST /defense-lab`, `GET /defense-lab/scenarios` (ver [Laboratório de defesa](#laboratório-de-defesa)) |
 | `start_defense_round`, `submit_defense_verdicts`, `finish_defense_round` | `POST /token/{id}/defense-lab/rounds`, `POST .../rounds/{round}/verdicts`, `POST .../rounds/{round}/finish` |
 
+### Argumentos e resultado
+
+Os argumentos têm os nomes da API (a URL é sempre `token_id`, a [requisição](glossario.md#captura) `request_id`), e o
+resultado é o JSON que a rota devolveria. URL protegida exige o argumento `read_secret` (ver
+[Privacidade](privacidade.md#privacidade)).
+
+O resultado vem com o segredo de assinatura mascarado e sem o atributo decifrado das requisições (`decrypted`; o
+resultado `decryption` vem, ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)). A pessoa vê o valor decifrado
+na tela, com o [segredo de leitura](glossario.md#privacidade), na aba Decifrado da requisição (Decrypted em inglês).
+
+Pelo mesmo motivo (o agente não vê o valor decifrado), o texto do `search_requests` nunca procura no valor decifrado, mesmo com o `read_secret`: procura no
+corpo como chegou, com o JWE. Se procurasse, cada busca diria ao agente se um texto está dentro do valor que ele não
+vê, e uma sequência de buscas o reconstruiria; a busca da API REST e a da tela procuram nele.
+
+### Mudar uma URL
+
 O `update_url` muda só o que foi enviado, ao contrário do `PUT /token/{id}` (que troca a configuração inteira): campo
 ausente fica como está, e campo enviado como `null` desliga (`signature`, `schema`) ou volta ao padrão. `signature:
-null` apaga também o segredo do HMAC: para religar a conferência, o objeto `signature` leva `secret` de novo. Numa URL
-que decifra (`e2ee`), `signature: null` tira também a conferência do HMAC que roda antes da decifra: a decifra deixa de
-exigir HMAC válido, e os campos do envelope fora dos vínculos (um `amount` ao lado do atributo cifrado, por exemplo)
-deixam de ser autenticados; os que os vínculos apontam continuam conferidos contra o `jti`, o `evt` e o `app`
-assinados pelo remetente. O resultado avisa em `warnings` (`"signature removed on a URL with e2ee: decryption no
-longer requires a valid HMAC"`).
+null` apaga também o segredo do HMAC: para religar a conferência, o objeto `signature` leva `secret` de novo.
 
-Os argumentos têm os nomes da API (a URL é sempre `token_id`, a mensagem `request_id`), e o resultado é o JSON que a
-rota devolveria, com o segredo de assinatura mascarado e sem o atributo decifrado das mensagens (`decrypted`; o
-resultado `decryption` vem, ver [Decifra de atributo](api.md#decifra-de-atributo-e2ee)); a pessoa vê o valor
-decifrado na tela, com o segredo de leitura, na aba Decifrado da mensagem (Decrypted em inglês). Pelo mesmo motivo,
-o texto do `search_requests` nunca procura no valor decifrado, mesmo com o `read_secret`: procura no corpo como chegou,
-com o JWE. Se procurasse, cada busca diria ao agente se um texto está dentro do valor que ele não vê, e uma sequência
-de buscas o reconstruiria; a busca da API REST e a da tela procuram nele. O `update_url`
-mantém o bloco `e2ee`, mas não o muda: a política e as chaves de cifra só pela API e pela tela. Quando `e2ee` vem nos
-argumentos do `create_url` ou do `update_url` (inclusive `null`, no `update_url`), ele é ignorado e o resultado traz
+Numa URL que decifra (`e2ee`), `signature: null` tira também a conferência do HMAC que roda antes da decifra: a
+decifra deixa de exigir HMAC válido, e os campos do envelope fora dos [vínculos](glossario.md#verificações) (um
+`amount` ao lado do atributo cifrado, por exemplo) deixam de ser autenticados. Os que os vínculos apontam continuam
+conferidos contra o `jti`, o `evt` e o `app` assinados pelo remetente.
+
+Nesse caso, o resultado avisa em `warnings`
+(`"signature removed on a URL with e2ee: decryption no longer requires a valid HMAC"`).
+
+O `update_url` mantém o bloco `e2ee`, mas não o muda: a política e as chaves de cifra só pela API e pela tela. Quando
+`e2ee` vem nos argumentos do `create_url` ou do `update_url` (inclusive `null`, no `update_url`), ele é ignorado e o
+resultado traz
 `"warnings": ["e2ee ignored: MCP never changes it; ask the person to change it in the UI (Checks › Decryption)."]`;
-sem nada ignorado, não há `warnings`. Validação, URL ou mensagem inexistente e limite viram erro de
-ferramenta (`isError`) com o status e as mensagens da API: `{"status": 422, "errors": {"timeout": ["The timeout may
-not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`. Desligado (o padrão), `/mcp` é 404.
+sem nada ignorado, não há `warnings`.
 
-Contra DNS rebinding, o `/mcp` confere `Host` e `Origin` com a lista `ANZOL_ALLOWED_HOSTS` (ver [Proteção contra
-DNS rebinding/CSRF](privacidade.md#proteção-contra-dns-rebindingcsrf)); com `*` na lista, só o padrão (`localhost`, `127.0.0.1`,
-`[::1]` e `host.docker.internal`). URL protegida exige o argumento `read_secret` (ver [Privacidade](privacidade.md#privacidade)).
+### Erros
+
+Validação, URL ou requisição inexistente e limite viram erro de ferramenta (`isError`) com o status e as mensagens da
+API: `{"status": 422, "errors": {"timeout": ["The timeout may
+not be greater than 10."]}}`, `{"status": 410, "error": "Token not found"}`.
+
+### Segurança
 
 O servidor não tem autenticação, como o resto da API: quem alcança a porta opera todas as URLs sem segredo de
 leitura, inclusive o `send` para a rede local quando `ANZOL_OUTBOUND_ALLOW_PRIVATE=true`. Por isso o compose publica
 só em `127.0.0.1`; não ligue o MCP num app publicado.
+
+Contra DNS rebinding, o `/mcp` confere `Host` e `Origin` com a lista `ANZOL_ALLOWED_HOSTS` (ver [Proteção contra
+DNS rebinding/CSRF](privacidade.md#proteção-contra-dns-rebindingcsrf)); com `*` na lista, só o padrão (`localhost`,
+`127.0.0.1`, `[::1]` e `host.docker.internal`).
 
 ### Laboratório E2EE
 
@@ -77,13 +108,14 @@ Um roteiro para a demonstração, pedido ao agente:
 
 O agente chama `create_e2ee_lab`, depois `run_e2ee_scenarios` com o `token_id` e o `read_secret` devolvidos, e
 resume o relatório (`27 de 27 conferem`). Para testar um cliente de fora, passe a JWK pública de assinatura dele em
-`trusted_signers` e o cabeçalho do HMAC do canal em `hmac_header`, e entregue as mensagens dele na URL criada.
+`trusted_signers` e o cabeçalho do HMAC do canal em `hmac_header`, e entregue as requisições dele na URL criada.
 
 ### Laboratório de defesa
 
-As cinco ferramentas do [laboratório de defesa](api.md#laboratório-de-defesa) deixam um agente conduzir a rodada
-inteira: ele cria a URL, abre a rodada, lê as requisições, diz quais são ataque, grava regras e fecha. Como cercar o
-agente e o que três defensores mediram na mesma semente estão no [guia do laboratório](laboratorio-defesa.md).
+As cinco ferramentas do [laboratório de defesa](api.md#laboratório-de-defesa) deixam um agente conduzir a
+[rodada](glossario.md#laboratório-de-defesa) inteira: ele cria a URL, abre a rodada, lê as requisições, diz quais são
+ataque, grava regras e fecha. Como cercar o agente e o que três defensores mediram na mesma semente estão no
+[guia do laboratório](laboratorio-defesa.md).
 
 - `create_defense_lab` só cria URL **nova**, marcada, e devolve o segredo de leitura (só aí), o briefing e o catálogo.
 - `start_defense_round` entrega a onda 1 e devolve o id da rodada. O agente lê com `list_requests` e `get_request`.
@@ -110,30 +142,53 @@ Com `ANZOL_AI_ENABLED=true`, duas rotas usam um LLM local OpenAI-compatível (po
 container é `host.docker.internal:8000`; [como ligar no compose](operacao.md#ligar-no-compose)). Os payloads não saem
 da máquina, e o LLM nunca grava nada.
 
-- `POST /token/{id}/rules/suggest` `{"prompt": "responda 429 com Retry-After 5 para POST em /pagamentos", "lang"?:
-  "pt-BR", "request_id"?: "<uuid de uma mensagem de exemplo>"}` → `{"rule", "explanation", "attempts", "check"}`. O modelo
-  responde com saída estruturada (`json_schema` estrito com a forma da regra) e o mesmo validador do `PUT /rules`
-  decide; se a regra for inválida, os erros voltam ao modelo, até 3 tentativas. Sem regra válida: 422
-  `{"error", "errors", "attempts"}` com os erros da última. A regra não é gravada: a tela a mostra no editor e quem
-  salva é o dono. `prompt` tem de 1 a 2000 caracteres (422 em `prompt`). A resposta traz também `check`, a regra
-  conferida pelo servidor, sem o modelo: `example` (a regra contra a mensagem do `request_id`, com as frases do
-  `rules/test`; `null` sem ele), `recent` (`{"evaluated", "matched"}` sobre as 500 mensagens mais novas) e `warnings`,
-  uma lista de `{"code", "message"}` com `example_not_matched`, `template_disabled` (`{{…}}` com `template` falso),
-  `path_never_seen` (nenhuma mensagem recente tem o caminho da regra), `sequence_as_single_rule` (o pedido descreve
-  uma sequência e a regra não tem cenário) e `decryption_matches_other_reasons` (`match.decryption: invalid` casa toda
-  recusa da decifra: as recentes que a regra casa têm motivo diferente do exemplo, ou mais de um sem exemplo; a
-  `message` conta os motivos, os códigos que o servidor gravou na decifra, e nada disso vai ao modelo). Os avisos não
-  geram nova tentativa.
-- `POST /token/{id}/request/{rid}/explain` `{"lang"?}` → `{"explanation", "facts"}`. O backend monta os fatos (resultado
-  da assinatura com o motivo, erros do schema, resultado da decifra com o motivo e as chaves, nunca o valor decifrado;
-  regra que respondeu ou near miss com as frases, status dado, cabeçalhos relevantes e até 4 KB do corpo) e o modelo só
-  redige, em markdown simples, no idioma de `lang` (padrão `en`). O `kid` de cifra só vai quando é de uma chave que a
-  URL tem ou apagou; o de assinatura, só quando é de um signatário confiável, e `signature_kid_trusted` diz se o lido
-  era. O `aud` recebido nunca vai: é texto do remetente, e o motivo `aud_mismatch` basta. `attempted` é falso quando o
-  HMAC barrou a mensagem antes e a decifra nem foi tentada (`hmac_failed`). Na decifra recusada, `who_fixes` (`sender`,
-  `url_configuration` ou `message_altered`) e `advice` dizem quem corrige e o que fazer, escritos pelo servidor a
-  partir do motivo e, com `unknown_kid` ou `decrypt_failed`, do `kid_deleted_at` (chave apagada, ou apagada e
-  recriada, com a data).
+### Sugerir uma regra
+
+`POST /token/{id}/rules/suggest` `{"prompt": "responda 429 com Retry-After 5 para POST em /pagamentos", "lang"?:
+"pt-BR", "request_id"?: "<uuid de uma mensagem de exemplo>"}` → `{"rule", "explanation", "attempts", "check"}`.
+
+O modelo responde com saída estruturada (`json_schema` estrito com a forma da regra) e o mesmo validador do
+`PUT /rules` decide; se a regra for inválida, os erros voltam ao modelo, até 3 tentativas. Sem regra válida: 422
+`{"error", "errors", "attempts"}` com os erros da última. `prompt` tem de 1 a 2000 caracteres (422 em `prompt`).
+
+A regra não é gravada: a tela a mostra no editor e quem salva é o dono.
+
+A resposta traz também `check`, a regra conferida pelo servidor, sem o modelo:
+
+- `example`: a regra contra a requisição do `request_id`, com as frases do `rules/test`; `null` sem ele.
+- `recent`: `{"evaluated", "matched"}` sobre as 500 requisições mais novas.
+- `warnings`: uma lista de `{"code", "message"}`, com estes códigos:
+  - `example_not_matched`;
+  - `template_disabled` (`{{…}}` com `template` falso);
+  - `path_never_seen` (nenhuma requisição recente tem o caminho da regra);
+  - `sequence_as_single_rule` (o pedido descreve uma sequência e a regra não tem cenário);
+  - `decryption_matches_other_reasons` (`match.decryption: invalid` casa toda recusa da decifra: as recentes que a
+    regra casa têm motivo diferente do exemplo, ou mais de um sem exemplo; a `message` conta os motivos, os códigos
+    que o servidor gravou na decifra, e nada disso vai ao modelo).
+
+Os avisos não geram nova tentativa.
+
+### Explicar uma requisição
+
+`POST /token/{id}/request/{rid}/explain` `{"lang"?}` → `{"explanation", "facts"}`. O backend monta os fatos e o modelo
+só redige, em markdown simples, no idioma de `lang` (padrão `en`). Os fatos são:
+
+- resultado da assinatura com o motivo;
+- erros do schema;
+- resultado da decifra com o motivo e as chaves, nunca o valor decifrado;
+- regra que respondeu ou [near miss](glossario.md#resposta) com as frases;
+- status dado, cabeçalhos relevantes e até 4 KB do corpo.
+
+O `kid` de cifra só vai quando é de uma chave que a URL tem ou apagou; o de assinatura, só quando é de um signatário
+confiável, e `signature_kid_trusted` diz se o lido era. O `aud` recebido nunca vai: é texto do remetente, e o motivo
+`aud_mismatch` basta.
+
+`attempted` é falso quando o HMAC barrou a requisição antes e a decifra nem foi tentada (`hmac_failed`). Na decifra
+recusada, `who_fixes` (`sender`, `url_configuration` ou `message_altered`) e `advice` dizem quem corrige e o que fazer,
+escritos pelo servidor a partir do motivo e, com `unknown_kid` ou `decrypt_failed`, do `kid_deleted_at` (chave
+apagada, ou apagada e recriada, com a data).
+
+### Variáveis
 
 | Variável | Padrão | O que faz |
 |---|---|---|
@@ -148,16 +203,22 @@ da máquina, e o LLM nunca grava nada.
 echo 'ANZOL_AI_API_KEY=<chave>' > .env && chmod 600 .env
 ```
 
+### Limites e falhas
+
 Cada chamada tem até 90 s (temperatura 0, sem retentativa); o app lê só o `content` da resposta (o
-`reasoning_content` dos modelos que pensam fica de fora). LLM fora do ar, com erro ou sem resposta no prazo: `502
-{"error": "The language model failed: ..."}`, sem afetar a captura nem o resto da API. Por URL, uma chamada de IA por
-vez e até 10 por minuto: acima disso, `429` com `Retry-After`. A inicialização não depende da chave nem do LLM.
+`reasoning_content` dos modelos que pensam fica de fora). LLM fora do ar, com erro ou sem resposta no prazo:
+`502 {"error": "The language model failed: ..."}`, sem afetar a captura nem o resto da API.
 
-Riscos:
+Por URL, uma chamada de IA por vez e até 10 por minuto: acima disso, `429` com `Retry-After`. A inicialização não
+depende da chave nem do LLM.
 
-- **Prompt injection.** O corpo e os cabeçalhos de uma mensagem são escritos por quem mandou o webhook. No explain (e
-  na mensagem de exemplo do suggest) eles vão ao modelo fora da mensagem de sistema, entre marcadores com um código
-  novo a cada chamada, e o prompt manda tratá-los como dado não confiável e nunca seguir instruções de dentro deles.
+### Riscos
+
+- **Prompt injection.** O corpo e os cabeçalhos de uma requisição são escritos por quem mandou o webhook. No explain
+  (e na requisição de exemplo do suggest) eles vão ao modelo fora da mensagem de sistema, entre marcadores com um
+  código novo a cada chamada, e o prompt manda tratá-los como dado não confiável e nunca seguir instruções de dentro
+  deles.
+
   Isso reduz, mas não elimina, o risco de um payload mudar o texto da explicação: os `facts` da resposta, montados
   pelo backend, são a fonte de verdade. O LLM não tem ferramentas nem grava nada, e a regra sugerida só vale depois
   que o dono a salva.
